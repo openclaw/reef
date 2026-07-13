@@ -4,6 +4,9 @@
   "main": "src/index.ts",
   "routes": [
     { "pattern": "reef.openclaw.ai", "custom_domain": true }
+    ,{ "pattern": "reefwire.ai", "custom_domain": true }
+    ,{ "pattern": "reefwire.dev", "custom_domain": true }
+    ,{ "pattern": "reefwire.io", "custom_domain": true }
   ],
   "compatibility_date": "2026-07-12",
   "compatibility_flags": ["nodejs_compat"],
