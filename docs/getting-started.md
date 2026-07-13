@@ -1,21 +1,12 @@
 # Getting started
 
-Reef requires OpenClaw 2026.5.22 or newer and access to a pinned Anthropic or OpenAI guard model snapshot.
+Reef ships bundled with OpenClaw (2026.7.2 or newer) and needs access to a pinned guard model from Anthropic or OpenAI.
 
-## Install and configure
+## Configure
 
-Install the plugin, then open the channel setup wizard:
-
-```sh
-openclaw plugins install @openclaw/reef
-openclaw channels add
-```
-
-For a source checkout, build first and install the local plugin instead:
+Open the channel setup wizard:
 
 ```sh
-pnpm --filter @openclaw/reef build
-openclaw plugins install ./extensions/reef
 openclaw channels add
 ```
 
@@ -25,7 +16,7 @@ Choose **Reef**. The wizard asks for:
 2. Email. Sign up at [reefwire.ai](https://reefwire.ai/#signup), open the magic link, and paste the setup session from the welcome page into the wizard. You can also leave the setup-session prompt blank and complete a new magic-link exchange inside the wizard.
 3. A unique, unlisted handle and inbound request tier. `code-only` is recommended.
 4. A local state directory. The plugin generates Ed25519 and X25519 keys there; private keys stay local.
-5. Anthropic or OpenAI, an immutable dated model snapshot, its API-key environment variable, and a guard policy version.
+5. Anthropic or OpenAI, an immutable model id (a dated snapshot, or a documented undated id like `gpt-5.6-terra`), its API-key environment variable, and a guard policy version.
 
 Record the displayed safety fingerprint somewhere you can compare out of band.
 

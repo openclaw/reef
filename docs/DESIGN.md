@@ -8,7 +8,7 @@ Design doc. Status: agreed 2026-07-12 (Peter), building. Supersedes the unsubmit
 
 - **`packages/protocol`** (`@openclaw/reef-protocol`) — pure TypeScript: envelope, crypto, hash-chained audit log, guard adapters. No OpenClaw imports.
 - **`workers/relay`** — Cloudflare Workers + Durable Objects + D1: email-registered handle registry plus end-to-end-encrypted store-and-forward relay.
-- **`extensions/reef`** — OpenClaw channel plugin wiring it into the existing channel framework (pairing, allowlists, framing, bot-loop protection).
+- **OpenClaw channel plugin** — lives bundled in [openclaw/openclaw `extensions/reef`](https://github.com/openclaw/openclaw/tree/main/extensions/reef) with the protocol vendored; it wires Reef into the channel framework (pairing, allowlists, framing, bot-loop protection).
 
 The relay operator can never read message content. Every message passes deterministic checks and a pinned-model guard verdict on both the sending and receiving side, fails closed, and lands in a hash-chained local audit log.
 

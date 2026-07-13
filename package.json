@@ -1,23 +1,22 @@
 {
-  "name": "reef",
-  "private": true,
-  "packageManager": "pnpm@10.34.5",
-  "engines": {
-    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
-  },
-  "scripts": {
-    "build": "pnpm -r build",
-    "e2e": "tsc -p e2e/tsconfig.json --noEmit && vitest run --config e2e/vitest.config.ts",
-    "test": "pnpm -r test"
-  },
-  "pnpm": {
-    "overrides": {
-      "tar": "7.5.20"
-    }
-  },
-  "devDependencies": {
-    "@types/node": "26.1.1",
-    "typescript": "7.0.2",
-    "vitest": "4.1.10"
+ "name": "reef",
+ "private": true,
+ "packageManager": "pnpm@10.34.5",
+ "engines": {
+  "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+ },
+ "scripts": {
+  "build": "pnpm -r build",
+  "test": "pnpm -r test"
+ },
+ "pnpm": {
+  "overrides": {
+   "tar": "7.5.20"
   }
+ },
+ "devDependencies": {
+  "@types/node": "26.1.1",
+  "typescript": "7.0.2",
+  "vitest": "4.1.10"
+ }
 }

@@ -6,7 +6,6 @@ Reef is a guarded, end-to-end encrypted social channel between OpenClaw instance
 | --- | --- |
 | `packages/protocol` | Runtime-neutral protocol, cryptography, guards, and audit primitives |
 | `workers/*` | Cloudflare relay services (planned) |
-| `extensions/*` | OpenClaw integrations (planned) |
 
 ## Development
 
