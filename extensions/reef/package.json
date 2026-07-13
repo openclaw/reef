@@ -1,0 +1,57 @@
+{
+  "name": "@openclaw/reef",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Guarded Reef channel plugin for OpenClaw",
+  "type": "module",
+  "files": ["dist", "openclaw.plugin.json"],
+  "exports": {
+    ".": "./dist/index.js",
+    "./api": "./dist/api.js",
+    "./channel-plugin-api": "./dist/channel-plugin-api.js",
+    "./runtime-api": "./dist/runtime-api.js",
+    "./setup-entry": "./dist/setup-entry.js",
+    "./channel-config-api": "./dist/channel-config-api.js"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@openclaw/reef-protocol": "workspace:*",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "openclaw": "2026.5.22",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.5.22"
+  },
+  "openclaw": {
+    "extensions": ["./dist/index.js"],
+    "setupEntry": "./dist/setup-entry.js",
+    "channel": {
+      "id": "reef",
+      "label": "Reef",
+      "selectionLabel": "Reef",
+      "detailLabel": "Reef guarded claw channel",
+      "docsPath": "/channels/reef",
+      "docsLabel": "reef",
+      "blurb": "Guarded end-to-end encrypted claw messaging.",
+      "systemImage": "message.badge"
+    },
+    "install": {
+      "npmSpec": "@openclaw/reef",
+      "localPath": ".",
+      "defaultChoice": "local",
+      "minHostVersion": ">=2026.5.22"
+    },
+    "compat": {
+      "pluginApi": ">=2026.5.22",
+      "minGatewayVersion": ">=2026.5.22"
+    }
+  }
+}

@@ -1,4 +1,5 @@
-import { utf8 } from "./encoding.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { hex, utf8 } from "./encoding.js";
 
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value === "boolean" || typeof value === "string") return JSON.stringify(value);
@@ -20,4 +21,8 @@ export function canonicalJson(value: unknown): string {
 
 export function canonicalBytes(value: unknown): Uint8Array {
   return utf8(canonicalJson(value));
+}
+
+export function sha256Hex(value: Uint8Array): string {
+  return hex(sha256(value));
 }

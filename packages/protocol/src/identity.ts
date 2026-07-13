@@ -37,6 +37,21 @@ export function generateIdentity(): IdentityKeyPair {
   };
 }
 
+export interface DeviceRequestSignatureInput {
+  method: string;
+  path: string;
+  ts: number;
+  bodySha256: string;
+}
+
+export function signDeviceRequest(input: DeviceRequestSignatureInput, signingSecretKey: string): string {
+  if (!/^[A-Z]+$/.test(input.method) || !input.path.startsWith("/") ||
+      !Number.isSafeInteger(input.ts) || input.ts < 0 || !/^[0-9a-f]{64}$/.test(input.bodySha256)) {
+    throw new Error("invalid device request signature input");
+  }
+  return base64url(ed25519.sign(canonicalBytes(input), fromBase64url(signingSecretKey)));
+}
+
 export function fingerprint(ed25519PublicKey: string, x25519PublicKey?: string): string {
   const material = x25519PublicKey
     ? canonicalBytes({ ed25519: ed25519PublicKey, x25519: x25519PublicKey })
