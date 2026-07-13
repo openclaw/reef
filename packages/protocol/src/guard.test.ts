@@ -26,6 +26,14 @@ describe("guard admission", () => {
   it("rejects floating model aliases at construction", () => {
     expect(() => admitGuardAdapter({ providerId: "fake", pinnedModel: "guard-latest", async classifyRaw() { return allow; } })).toThrow("dated snapshot");
   });
+
+  it("rejects bare family aliases without a documented immutable id", () => {
+    expect(() => admitGuardAdapter({ providerId: "fake", pinnedModel: "gpt-5.6", async classifyRaw() { return allow; } })).toThrow("dated snapshot");
+  });
+
+  it.each(["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"])("accepts documented immutable undated id %s", (pinnedModel) => {
+    expect(() => admitGuardAdapter({ providerId: "fake", pinnedModel, async classifyRaw() { return allow; } })).not.toThrow();
+  });
 });
 
 describe("provider adapters", () => {

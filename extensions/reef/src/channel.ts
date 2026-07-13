@@ -11,7 +11,7 @@ import { reefMessageAdapter, reefOutboundAdapter } from "./outbound.js";
 import { getActiveReef, getReefRuntime, setActiveReef } from "./runtime.js";
 import { loadKeys, openStores, resolveStateDir, ReviewApprovalStore } from "./state.js";
 import { reefSetupAdapter, reefSetupWizard } from "./setup.js";
-import { ReefInboxConnection, ReefTransportClient } from "./transport.js";
+import { abortableSleep, ReefInboxConnection, ReefTransportClient } from "./transport.js";
 import type { ReefAccount, ReefIngressMessage } from "./types.js";
 
 function resolveAccount(cfg: unknown): ReefAccount {
@@ -70,7 +70,16 @@ export const reefPlugin: ChannelPlugin<ReefAccount> = {
   },
   status: {
     defaultRuntime: { accountId: "default", enabled: true, configured: false },
-    buildAccountSnapshot: ({ account }) => ({ accountId: "default", enabled: account.enabled, configured: account.configured, extra: { handle: account.config.handle } }),
+    buildAccountSnapshot: ({ account, runtime }) => ({
+      accountId: "default",
+      enabled: account.enabled,
+      configured: account.configured,
+      running: runtime?.running ?? false,
+      connected: runtime?.connected ?? false,
+      lastConnectedAt: runtime?.lastConnectedAt ?? null,
+      lastError: runtime?.lastError ?? null,
+      extra: { handle: account.config.handle },
+    }),
   },
   gateway: {
     startAccount: async (ctx) => {
@@ -140,15 +149,25 @@ export const reefPlugin: ChannelPlugin<ReefAccount> = {
         }
       };
       await reconcile();
+      ctx.setStatus({ accountId: "default", running: true, connected: false });
       const socketFactory = (url: string) => new WebSocket(url) as unknown as import("./transport.js").WebSocketLike;
-      const inbox = new ReefInboxConnection(transport, (entries) => flow.processEntries(entries), socketFactory);
+      const inbox = new ReefInboxConnection(transport, (entries) => flow.processEntries(entries), socketFactory, (state) => {
+        if (ctx.abortSignal.aborted) return;
+        ctx.setStatus(state === "connected"
+          ? { accountId: "default", running: true, connected: true, lastConnectedAt: Date.now() }
+          : { accountId: "default", running: true, connected: false });
+      });
       const reconciliationLoop = async () => {
         while (!ctx.abortSignal.aborted) {
-          await new Promise<void>((resolve) => setTimeout(resolve, 30_000));
+          await abortableSleep(30_000, ctx.abortSignal);
           if (!ctx.abortSignal.aborted) await reconcile();
         }
       };
-      await Promise.all([inbox.start(ctx.abortSignal), reconciliationLoop()]);
+      try {
+        await Promise.all([inbox.start(ctx.abortSignal), reconciliationLoop()]);
+      } finally {
+        ctx.setStatus({ accountId: "default", running: false, connected: false });
+      }
     },
   },
 };

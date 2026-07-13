@@ -101,8 +101,21 @@ export class ReefTransportClient {
 
 export interface WebSocketLike {
   addEventListener(type: "message", listener: (event: { data: unknown }) => void): void;
-  addEventListener(type: "close" | "error", listener: () => void): void;
+  addEventListener(type: "open" | "close" | "error", listener: () => void): void;
   close(): void;
+}
+
+export function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (signal?.aborted) return resolve();
+    const timer = setTimeout(done, ms);
+    function done(): void {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", done);
+      resolve();
+    }
+    signal?.addEventListener("abort", done, { once: true });
+  });
 }
 
 export class ReefInboxConnection {
@@ -112,6 +125,7 @@ export class ReefInboxConnection {
     readonly client: ReefTransportClient,
     readonly onEntries: (entries: InboxEntry[]) => Promise<void>,
     readonly webSocketFactory: (url: string) => WebSocketLike,
+    readonly onState?: (state: "connected" | "disconnected") => void,
   ) {}
 
   async start(signal?: AbortSignal): Promise<void> {
@@ -122,7 +136,7 @@ export class ReefInboxConnection {
         await this.live(signal);
         delay = 250;
       } catch {
-        await new Promise<void>((resolve) => setTimeout(resolve, delay));
+        await abortableSleep(delay, signal);
         delay = Math.min(delay * 2, 30_000);
       }
     }
@@ -143,17 +157,29 @@ export class ReefInboxConnection {
   private live(signal?: AbortSignal): Promise<void> {
     return new Promise((resolve, reject) => {
       const socket = this.webSocketFactory(this.client.websocketUrl());
-      signal?.addEventListener("abort", () => { socket.close(); resolve(); }, { once: true });
+      // Emit each state transition at most once per socket and never after this
+      // invocation settles, so late events from an abandoned socket cannot
+      // overwrite the lifecycle state of its replacement (or of a stopped channel).
+      let settled = false;
+      const settle = (error?: Error) => {
+        if (settled) return;
+        settled = true;
+        this.onState?.("disconnected");
+        if (error) reject(error);
+        else resolve();
+      };
+      signal?.addEventListener("abort", () => { socket.close(); settle(); }, { once: true });
+      socket.addEventListener("open", () => { if (!settled) this.onState?.("connected"); });
       socket.addEventListener("message", (event) => {
         try {
           const frame = JSON.parse(String(event.data)) as { type?: string; entry?: InboxEntry };
           if (frame.type !== "entry" || !frame.entry) return;
           this.cursor = Math.max(this.cursor, frame.entry.seq);
-          void this.onEntries([frame.entry]).catch(reject);
-        } catch (error) { reject(error); }
+          void this.onEntries([frame.entry]).catch((error) => settle(error instanceof Error ? error : new Error(String(error))));
+        } catch (error) { settle(error instanceof Error ? error : new Error(String(error))); }
       });
-      socket.addEventListener("close", resolve);
-      socket.addEventListener("error", reject);
+      socket.addEventListener("close", () => settle());
+      socket.addEventListener("error", () => settle(new Error("reef inbox socket error")));
     });
   }
 }

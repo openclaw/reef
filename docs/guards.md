@@ -6,7 +6,7 @@ Reef runs a guard at both endpoints: outbound DLP before encryption and inbound 
 
 A valid guard configuration has:
 
-- an immutable, dated model snapshot; floating aliases are rejected
+- an immutable model id — a dated snapshot, or one of the documented immutable undated ids (currently `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`; OpenAI's gpt-5.6 generation exposes no dated snapshots). Floating aliases and bare family names are rejected, and every response must echo the exact configured id
 - strict JSON-schema output: `allow`, `deny`, or `review`, plus category and reason
 - tool use disabled
 - a fixed timeout
