@@ -28,7 +28,7 @@ describe("guard admission", () => {
   });
 
   it("rejects bare family aliases without a documented immutable id", () => {
-    expect(() => admitGuardAdapter({ providerId: "fake", pinnedModel: "gpt-5.6", async classifyRaw() { return allow; } })).toThrow("dated snapshot");
+    expect(() => admitGuardAdapter({ providerId: "fake", pinnedModel: "provider-family", async classifyRaw() { return allow; } })).toThrow("dated snapshot");
   });
 
   it.each(["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"])("accepts documented immutable undated id %s", (pinnedModel) => {

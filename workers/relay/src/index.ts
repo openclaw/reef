@@ -9,7 +9,7 @@ import {
   type SignedReceipt,
   type SignedRotation,
 } from "@openclaw/reef-protocol";
-import { sha256Hex, randomToken, verifyEd25519, verifyEnvelopeForRelay, canonicalSize } from "./crypto.js";
+import { canonicalSize, randomFriendCode, randomToken, sha256Hex, verifyEd25519, verifyEnvelopeForRelay } from "./crypto.js";
 import { LIMITS } from "./limits.js";
 import { Mailbox } from "./mailbox.js";
 import type { DeviceIdentity, FriendshipRow, HandleRow, RequestPolicy } from "./types.js";
@@ -248,7 +248,7 @@ async function rotateHandle(handle: string, data: RequestData, request: Request,
 }
 
 async function mintCode(device: DeviceIdentity, env: Env): Promise<Response> {
-  const code = Array.from(crypto.getRandomValues(new Uint8Array(6)), (byte) => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[byte % 32]).join("");
+  const code = randomFriendCode();
   const expires = nowSeconds() + LIMITS.friendCodeTtlSeconds;
   await env.DB.prepare("INSERT INTO friend_codes(handle, code_hash, expires) VALUES (?, ?, ?)")
     .bind(device.handle, await sha256Hex(code), expires).run();

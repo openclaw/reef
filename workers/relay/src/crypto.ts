@@ -1,6 +1,7 @@
 import { canonicalBytes, canonicalJson, fromBase64, fromBase64url, parseHandleEpoch, type Envelope } from "@openclaw/reef-protocol";
 
 const encoder = new TextEncoder();
+const FRIEND_CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 export async function sha256Hex(value: string | Uint8Array): Promise<string> {
   const bytes = typeof value === "string" ? encoder.encode(value) : value;
@@ -10,6 +11,13 @@ export async function sha256Hex(value: string | Uint8Array): Promise<string> {
 export function randomToken(bytes = 32): string {
   const value = crypto.getRandomValues(new Uint8Array(bytes));
   return Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export function randomFriendCode(
+  length = 6,
+  rng: (length: number) => Uint8Array = (size) => crypto.getRandomValues(new Uint8Array(new ArrayBuffer(size))),
+): string {
+  return Array.from(rng(length), (byte) => FRIEND_CODE_ALPHABET[byte & 31]).join("");
 }
 
 export async function verifyEd25519(publicKey: string, signature: string, message: Uint8Array, urlSafe = true): Promise<boolean> {
