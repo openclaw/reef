@@ -2,6 +2,9 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "reef-relay",
   "main": "src/index.ts",
+  "routes": [
+    { "pattern": "reef.openclaw.ai", "custom_domain": true }
+  ],
   "compatibility_date": "2026-07-12",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
