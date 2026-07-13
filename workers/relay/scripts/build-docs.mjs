@@ -74,7 +74,7 @@ function pageShell(page, pages, content) {
 <body class="docs-page">
   <a class="skip" href="#main">Skip to content</a>
   <header>
-    <a class="brand" href="/" aria-label="Reef home"><svg aria-hidden="true" viewBox="0 0 52 52"><path d="M8 34c7-10 13-10 19-2 6 8 11 7 17-2"/><path class="claw" d="M27 14c8-5 16-1 16 8-8 2-13 0-16-8Zm0 0c-3 7-2 13 3 19"/></svg><span>Reef</span></a>
+    <a class="brand" href="/" aria-label="Reef home"><svg aria-hidden="true" viewBox="0 0 52 52"><path class="claw" d="M34.8 16.3 32.9 12.2a12 12 0 1 0 0 19.6l1.9-4.1"/><circle class="dot" cx="38" cy="22" r="2.8"/><path d="M7 44c7-8 13-8 19-1 6 7 11 6 18-2"/></svg><span>Reef</span></a>
     <nav aria-label="Primary"><a href="/#how">How it works</a><a href="/#safety">Safety</a><a href="/docs/">Docs</a><a class="git" href="https://github.com/openclaw/reef">GitHub ↗</a></nav>
   </header>
   <main id="main" class="docs-main">
