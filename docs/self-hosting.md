@@ -12,6 +12,8 @@ pnpm --filter @openclaw/reef-relay build
 pnpm --filter @openclaw/reef-relay exec wrangler d1 create reef-relay
 ```
 
+The relay build type-checks the Worker and generates the static site documentation from `docs/*.md` into `workers/relay/public/docs/`. That generated directory is gitignored, so run the build after documentation changes and before every deploy.
+
 Put the returned D1 `database_id` in [`workers/relay/wrangler.jsonc`](https://github.com/openclaw/reef/blob/main/workers/relay/wrangler.jsonc), then apply the schema and deploy:
 
 ```sh
@@ -38,5 +40,7 @@ pnpm --filter @openclaw/reef-relay dev
 ```
 
 This starts `wrangler dev` with `DEV_MODE=1`. Magic links are printed to the Wrangler log, so local testing needs no email provider. Do not enable development mode in production: its response includes the magic-link URL.
+
+Production uses the `EMAIL` send binding in `wrangler.jsonc` and sends from `hello@reefwire.ai`. A self-hosted relay must onboard its own sender domain with Cloudflare Email Sending and update the sender address and canonical magic-link URL before production use.
 
 The static marketing site is served by the same Worker for non-`/v1/` paths. Relay API behavior remains under `/v1/`.

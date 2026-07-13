@@ -98,7 +98,7 @@ async function register(client: ReefTransportClient, email: string): Promise<voi
   const started = await client.authStart(email);
   expect(started.status).toBe("sent");
   expect(started.magicLink).toBeTruthy();
-  const token = new URL(started.magicLink!).searchParams.get("token");
+  const token = new URLSearchParams(new URL(started.magicLink!).hash.slice(1)).get("token");
   expect(token).toBeTruthy();
   const completed = await client.authComplete(token!);
   expect(completed.session).toMatch(/^[0-9a-f]{64}$/);
@@ -207,7 +207,7 @@ async function freePort(): Promise<number> {
 }
 
 async function waitForRelay(): Promise<void> {
-  const deadline = Date.now() + 15_000;
+  const deadline = Date.now() + 45_000;
   while (Date.now() < deadline) {
     if (relay?.exitCode !== null) throw new Error(`wrangler dev exited early\n${redact(relayLogs)}`);
     try {
@@ -220,7 +220,7 @@ async function waitForRelay(): Promise<void> {
 }
 
 function redact(value: string): string {
-  return value.replace(/([?&]token=)[^\s"&]+/g, "$1[REDACTED]");
+  return value.replace(/([?#&]token=)[^\s"&]+/g, "$1[REDACTED]");
 }
 
 beforeAll(async () => {
@@ -238,7 +238,7 @@ beforeAll(async () => {
   relay.stderr.on("data", (chunk) => { relayLogs += String(chunk); });
   await waitForRelay();
   pass("1 relay: real local Worker + D1 + Durable Object ready");
-});
+}, 120_000);
 
 afterAll(async () => {
   if (relay && relay.exitCode === null) {

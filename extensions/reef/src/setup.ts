@@ -27,8 +27,13 @@ export const reefSetupWizard = {
   },
   configure: async ({ cfg }: { cfg: OpenClawConfig }) => ({ cfg }),
   configureInteractive: async ({ cfg, prompter }: { cfg: OpenClawConfig; prompter: Prompt }) => {
-    const relayUrl = await prompter.text({ message: "Reef relay URL", initialValue: "https://reef.openclaw.ai" });
+    const relayUrl = await prompter.text({ message: "Reef relay URL", initialValue: "https://reefwire.ai" });
     const email = await prompter.text({ message: "Email", validate: (value) => /@/.test(value) ? undefined : "Valid email required" });
+    let setupSession = (await prompter.text({
+      message: "Existing setup session (optional)",
+      placeholder: "Paste from reefwire.ai/welcome, or leave blank for email",
+      sensitive: true,
+    })).trim();
     const handle = (await prompter.text({ message: "Handle (without @)", validate: (value) => /^[a-z0-9][a-z0-9_-]{0,62}$/.test(value) ? undefined : "Invalid handle" })).toLowerCase();
     const requestPolicy = await prompter.select({
       message: "Inbound friend-request policy",
@@ -42,11 +47,13 @@ export const reefSetupWizard = {
     const stateDir = resolveStateDir(await prompter.text({ message: "Local Reef state directory", initialValue: resolveStateDir() }));
     const keys = await generateAndStoreKeys(stateDir);
     const client = new ReefTransportClient(relayUrl, handle, keys);
-    const started = await client.authStart(email);
-    if (started.magicLink) await prompter.note(started.magicLink, "Development magic link");
-    const token = await prompter.text({ message: "Magic-link token", sensitive: true });
-    const session = await client.authComplete(token);
-    await client.createHandle(session.session, requestPolicy);
+    if (!setupSession) {
+      const started = await client.authStart(email);
+      if (started.magicLink) await prompter.note(started.magicLink, "Development magic link");
+      const token = await prompter.text({ message: "Magic-link token", sensitive: true });
+      setupSession = (await client.authComplete(token)).session;
+    }
+    await client.createHandle(setupSession, requestPolicy);
     const provider = await prompter.select({ message: "Guard provider", options: [
       { value: "anthropic" as const, label: "Anthropic" }, { value: "openai" as const, label: "OpenAI" },
     ] });

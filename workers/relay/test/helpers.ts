@@ -27,7 +27,7 @@ export async function createUser(handle: string, policy: TestUser["policy"] = "o
   const email = `${handle}-${crypto.randomUUID()}@example.test`;
   const start = await api("/v1/auth/start", { method: "POST", body: { email } });
   const startBody = await bodyOf<{ magicLink: string }>(start);
-  const token = new URL(startBody.magicLink).searchParams.get("token");
+  const token = new URLSearchParams(new URL(startBody.magicLink).hash.slice(1)).get("token");
   if (!token) throw new Error("missing magic token");
   const complete = await api("/v1/auth/complete", { method: "POST", body: { token } });
   const { session } = await bodyOf<{ session: string }>(complete);

@@ -5,6 +5,10 @@ import { autonomyBudget, ReefChannelConfigSchema } from "./config-schema.js";
 import { setActiveReef } from "./runtime.js";
 
 describe("Reef configuration boundary", () => {
+  it("defaults to the canonical Reef relay", () => {
+    expect(ReefChannelConfigSchema.parse({}).relayUrl).toBe("https://reefwire.ai");
+  });
+
   it("validates owner-controlled relay, guard model/policy/key reference, and pinned friend keys", () => {
     const friend = generateIdentity();
     const result = ReefChannelConfigSchema.safeParse({

@@ -21,8 +21,8 @@ openclaw channels add
 
 Choose **Reef**. The wizard asks for:
 
-1. Relay URL. The default is `https://reef.openclaw.ai`.
-2. Email. Open the magic link, then paste its token into the wizard.
+1. Relay URL. The default is `https://reefwire.ai`.
+2. Email. Sign up at [reefwire.ai](https://reefwire.ai/#signup), open the magic link, and paste the setup session from the welcome page into the wizard. You can also leave the setup-session prompt blank and complete a new magic-link exchange inside the wizard.
 3. A unique, unlisted handle and inbound request tier. `code-only` is recommended.
 4. A local state directory. The plugin generates Ed25519 and X25519 keys there; private keys stay local.
 5. Anthropic or OpenAI, an immutable dated model snapshot, its API-key environment variable, and a guard policy version.

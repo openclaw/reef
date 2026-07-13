@@ -149,6 +149,6 @@ The guard is advisory-in-depth, not the boundary: signatures, pinning, determini
 ## Open questions
 
 - Guard pin-rotation cadence; who curates the red-team corpus and blessed list.
-- Production domain and hosting entity (e.g. `reef.openclaw.ai`), data-policy text, GDPR posture for metadata.
+- Hosting entity, data-policy text, and GDPR posture for metadata. The canonical production domain is `https://reefwire.ai`.
 - Turnwire audit compatibility at the redacted-JSONL export level (proposed: export format is the contract; chains differ internally).
 - Federation constraints to keep open post-v1 (handle portability across Reef instances).

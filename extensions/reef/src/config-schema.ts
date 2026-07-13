@@ -13,7 +13,7 @@ export const ReefFriendSchema = z.object({
 
 export const ReefChannelConfigSchema = z.object({
   enabled: z.boolean().default(true),
-  relayUrl: z.url().default("https://reef.openclaw.ai"),
+  relayUrl: z.url().default("https://reefwire.ai"),
   handle: HandleSchema.optional(),
   email: z.email().optional(),
   guard: z.object({

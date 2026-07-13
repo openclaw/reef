@@ -29,9 +29,33 @@ interface EmailSender {
   sendMagicLink(email: string, link: string): Promise<void>;
 }
 
+const MAGIC_LINK_ORIGIN = "https://reefwire.ai";
+const CANONICAL_SITE_HOST = "reefwire.ai";
+const SITE_REDIRECT_HOSTS = new Set([
+  "reefwire.dev",
+  "reefwire.io",
+  "reef.openclaw.ai",
+  "www.reefwire.ai",
+  "reef-relay.services-91b.workers.dev",
+]);
+
 class LogEmailSender implements EmailSender {
   async sendMagicLink(email: string, link: string): Promise<void> {
     console.log(JSON.stringify({ event: "magic_link", email, link }));
+  }
+}
+
+class CloudflareEmailSender implements EmailSender {
+  constructor(private readonly binding: SendEmail) {}
+
+  async sendMagicLink(email: string, link: string): Promise<void> {
+    await this.binding.send({
+      to: email,
+      from: { email: "hello@reefwire.ai", name: "Reef" },
+      subject: "Your Reef sign-in link",
+      html: magicLinkHtml(link),
+      text: `Sign in to Reef\n\nOpen this link to verify your email and continue setup:\n${link}\n\nThis link expires soon and can only be used once.`,
+    });
   }
 }
 
@@ -55,10 +79,13 @@ export default {
 
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  if (!url.pathname.startsWith("/v1/")) return env.ASSETS.fetch(request);
+  if (!url.pathname.startsWith("/v1/")) {
+    const redirect = canonicalSiteRedirect(request);
+    return redirect ?? env.ASSETS.fetch(request);
+  }
   const data = await readRequestData(request);
 
-  if (request.method === "POST" && url.pathname === "/v1/auth/start") return authStart(data.json, request, env, url.origin);
+  if (request.method === "POST" && url.pathname === "/v1/auth/start") return authStart(data.json, request, env);
   if (request.method === "POST" && url.pathname === "/v1/auth/complete") return authComplete(data.json, env);
   if (request.method === "GET" && url.pathname === "/v1/auth/complete") return authComplete({ token: url.searchParams.get("token") }, env);
   if (request.method === "POST" && url.pathname === "/v1/handles") {
@@ -95,7 +122,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   throw new HttpError(404, "not_found");
 }
 
-async function authStart(value: unknown, request: Request, env: Env, origin: string): Promise<Response> {
+async function authStart(value: unknown, request: Request, env: Env): Promise<Response> {
   const body = exactObject(value, ["email"]);
   const email = stringField(body, "email").trim().toLowerCase();
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, "invalid_request");
@@ -114,9 +141,34 @@ async function authStart(value: unknown, request: Request, env: Env, origin: str
   const token = randomToken();
   await env.DB.prepare("INSERT INTO auth_tokens(token_hash, account_id, expires) VALUES (?, ?, ?)")
     .bind(await sha256Hex(token), account.id, now + LIMITS.magicTokenTtlSeconds).run();
-  const link = `${origin}/v1/auth/complete?token=${encodeURIComponent(token)}`;
-  await new LogEmailSender().sendMagicLink(email, link);
+  const link = `${MAGIC_LINK_ORIGIN}/welcome#token=${encodeURIComponent(token)}`;
+  const sender = env.DEV_MODE === "1" || !env.EMAIL ? new LogEmailSender() : new CloudflareEmailSender(env.EMAIL);
+  await sender.sendMagicLink(email, link);
   return env.DEV_MODE === "1" ? json({ status: "sent", magicLink: link }) : json({ status: "sent" });
+}
+
+export function canonicalSiteRedirect(request: Request): Response | undefined {
+  if (request.method !== "GET" && request.method !== "HEAD") return undefined;
+  const url = new URL(request.url);
+  if (url.pathname.startsWith("/v1/") || !SITE_REDIRECT_HOSTS.has(url.hostname.toLowerCase())) return undefined;
+  url.protocol = "https:";
+  url.hostname = CANONICAL_SITE_HOST;
+  url.port = "";
+  return Response.redirect(url.toString(), 301);
+}
+
+function magicLinkHtml(link: string): string {
+  return `<!doctype html>
+<html lang="en"><body style="margin:0;background:#061d24;color:#eaf4f2;font-family:Manrope,Arial,sans-serif">
+<div style="max-width:560px;margin:0 auto;padding:48px 24px">
+<div style="border-top:1px solid rgba(168,213,204,.35);border-bottom:1px solid rgba(168,213,204,.35);padding:36px 0">
+<p style="margin:0 0 18px;color:#a8d5cc;font:12px monospace;letter-spacing:.12em;text-transform:uppercase">Reef · guarded claw channel</p>
+<h1 style="margin:0 0 18px;color:#eaf4f2;font:400 38px/1.05 Georgia,serif">Sign in to Reef</h1>
+<p style="margin:0 0 28px;color:#a6bdb9;font-size:16px;line-height:1.65">Verify your email to continue setting up your Reef handle.</p>
+<a href="${link}" style="display:inline-block;padding:14px 22px;background:#ff7a59;color:#10262b;text-decoration:none;font-size:14px;font-weight:700">Continue to Reef&nbsp;&nbsp;→</a>
+<p style="margin:28px 0 0;color:#789792;font:12px/1.6 monospace">This link expires soon and can only be used once.</p>
+</div>
+</div></body></html>`;
 }
 
 async function authComplete(value: unknown, env: Env): Promise<Response> {

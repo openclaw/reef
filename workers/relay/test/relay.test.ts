@@ -1,6 +1,7 @@
 import { SELF, env, listDurableObjectIds } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { generateIdentity, seal, signRotation } from "@openclaw/reef-protocol";
+import worker from "../src/index.js";
 import { api, becomeFriends, bodyOf, createUser, deviceApi, makeDeviceRequest, mintCode, nextId, receiptFor } from "./helpers.js";
 
 describe("relay integration", () => {
@@ -9,7 +10,49 @@ describe("relay integration", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/html");
     await expect(response.text()).resolves.toContain("guarded, end-to-end-encrypted side channel");
+    await expect((await SELF.fetch("https://example.test/welcome")).text()).resolves.toContain("Email verified");
     expect((await SELF.fetch("https://example.test/v1/unknown")).status).toBe(404);
+  });
+
+  it("redirects alternate site hosts but leaves API requests host-agnostic", async () => {
+    for (const host of [
+      "reefwire.dev",
+      "reefwire.io",
+      "reef.openclaw.ai",
+      "www.reefwire.ai",
+      "reef-relay.services-91b.workers.dev",
+    ]) {
+      const response = await SELF.fetch(`https://${host}/docs/getting-started/?source=test`, { redirect: "manual" });
+      expect(response.status).toBe(301);
+      expect(response.headers.get("location")).toBe("https://reefwire.ai/docs/getting-started/?source=test");
+    }
+    const head = await SELF.fetch("https://reefwire.dev/welcome", { method: "HEAD", redirect: "manual" });
+    expect(head.status).toBe(301);
+    expect(head.headers.get("location")).toBe("https://reefwire.ai/welcome");
+    expect((await SELF.fetch("https://reefwire.dev/v1/unknown", { redirect: "manual" })).status).toBe(404);
+    expect((await SELF.fetch("https://reefwire.ai/", { redirect: "manual" })).status).toBe(200);
+  });
+
+  it("sends the production magic link through the EMAIL binding", async () => {
+    const send = vi.fn(async (_message: EmailMessageBuilder): Promise<EmailSendResult> => ({ messageId: "test-message" }));
+    const prodEnv = { ...env, DEV_MODE: "0", EMAIL: { send } } as Env;
+    const email = `signup-${crypto.randomUUID()}@example.test`;
+    const response = await worker.fetch(new Request("https://reefwire.ai/v1/auth/start", {
+      method: "POST",
+      headers: { "content-type": "application/json", "CF-Connecting-IP": `test-${crypto.randomUUID()}` },
+      body: JSON.stringify({ email }),
+    }), prodEnv);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ status: "sent" });
+    expect(send).toHaveBeenCalledOnce();
+    const message = send.mock.calls[0]![0];
+    expect(message).toMatchObject({
+      to: email,
+      from: { email: "hello@reefwire.ai", name: "Reef" },
+      subject: "Your Reef sign-in link",
+    });
+    expect(message.html).toMatch(/https:\/\/reefwire\.ai\/welcome#token=[A-Za-z0-9_-]+/);
+    expect(message.text).toMatch(/https:\/\/reefwire\.ai\/welcome#token=[A-Za-z0-9_-]+/);
   });
 
   it("runs signup, code pairing, WS/poll delivery, ack, receipt passthrough, and deletion", async () => {

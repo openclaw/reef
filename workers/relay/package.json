@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json --noEmit && node scripts/build-docs.mjs",
     "dev": "wrangler dev --var DEV_MODE:1",
     "test": "vitest run",
     "types": "wrangler types --include-runtime false --strict-vars false"
@@ -16,6 +16,7 @@
     "@cloudflare/vitest-pool-workers": "0.18.4",
     "@cloudflare/workers-types": "5.20260713.1",
     "@noble/curves": "2.2.0",
+    "marked": "15.0.12",
     "wrangler": "4.110.0"
   }
 }
