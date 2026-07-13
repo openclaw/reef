@@ -27,7 +27,7 @@ export const reefSetupWizard = {
   },
   configure: async ({ cfg }: { cfg: OpenClawConfig }) => ({ cfg }),
   configureInteractive: async ({ cfg, prompter }: { cfg: OpenClawConfig; prompter: Prompt }) => {
-    const relayUrl = await prompter.text({ message: "Reef relay URL", initialValue: "https://reef.openclaw.org" });
+    const relayUrl = await prompter.text({ message: "Reef relay URL", initialValue: "https://reef.openclaw.ai" });
     const email = await prompter.text({ message: "Email", validate: (value) => /@/.test(value) ? undefined : "Valid email required" });
     const handle = (await prompter.text({ message: "Handle (without @)", validate: (value) => /^[a-z0-9][a-z0-9_-]{0,62}$/.test(value) ? undefined : "Invalid handle" })).toLowerCase();
     const requestPolicy = await prompter.select({

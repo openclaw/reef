@@ -4,6 +4,14 @@ import { generateIdentity, seal, signRotation } from "@openclaw/reef-protocol";
 import { api, becomeFriends, bodyOf, createUser, deviceApi, makeDeviceRequest, mintCode, nextId, receiptFor } from "./helpers.js";
 
 describe("relay integration", () => {
+  it("serves the site outside the API namespace", async () => {
+    const response = await SELF.fetch("https://example.test/");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    await expect(response.text()).resolves.toContain("guarded, end-to-end-encrypted side channel");
+    expect((await SELF.fetch("https://example.test/v1/unknown")).status).toBe(404);
+  });
+
   it("runs signup, code pairing, WS/poll delivery, ack, receipt passthrough, and deletion", async () => {
     const alice = await createUser("alice", "open");
     const bob = await createUser("bob", "code-only");

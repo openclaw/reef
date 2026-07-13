@@ -8,7 +8,7 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
-      "relayUrl": { "type": "string", "format": "uri", "default": "https://reef.openclaw.org" },
+      "relayUrl": { "type": "string", "format": "uri", "default": "https://reef.openclaw.ai" },
       "handle": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,62}$" },
       "email": { "type": "string", "format": "email" },
       "guard": {

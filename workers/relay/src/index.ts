@@ -55,7 +55,7 @@ export default {
 
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  if (!url.pathname.startsWith("/v1/")) throw new HttpError(404, "not_found");
+  if (!url.pathname.startsWith("/v1/")) return env.ASSETS.fetch(request);
   const data = await readRequestData(request);
 
   if (request.method === "POST" && url.pathname === "/v1/auth/start") return authStart(data.json, request, env, url.origin);
