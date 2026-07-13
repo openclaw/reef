@@ -1,8 +1,16 @@
 import { SELF, env, listDurableObjectIds } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
 import { generateIdentity, seal, signRotation } from "@openclaw/reef-protocol";
+import { randomFriendCode } from "../src/crypto.js";
 import worker from "../src/index.js";
 import { api, becomeFriends, bodyOf, createUser, deviceApi, makeDeviceRequest, mintCode, nextId, receiptFor } from "./helpers.js";
+
+describe("friend code generation", () => {
+  it("uses the Crockford alphabet for every random index", () => {
+    const bytes = Uint8Array.from({ length: 32 }, (_, index) => index);
+    expect(randomFriendCode(32, () => bytes)).toBe("0123456789ABCDEFGHJKMNPQRSTVWXYZ");
+  });
+});
 
 describe("relay integration", () => {
   it("serves the site outside the API namespace", async () => {
