@@ -62,9 +62,17 @@ function pageShell(page, pages, content) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#06232b">
+  <meta name="theme-color" content="#04161b">
   <meta name="description" content="${escapeHtml(page.title)} — Reef documentation">
   <title>${escapeHtml(page.title)} — Reef docs</title>
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Reef">
+  <meta property="og:title" content="${escapeHtml(page.title)} — Reef docs">
+  <meta property="og:description" content="${escapeHtml(page.title)} — Reef documentation">
+  <meta property="og:image" content="https://reefwire.ai/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
