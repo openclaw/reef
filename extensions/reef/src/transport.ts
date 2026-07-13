@@ -9,6 +9,11 @@ export class ReefRelayError extends Error {
 }
 
 export class ReefTransportClient {
+  // Ed25519 is deterministic: identical (method, path, ts, body) requests produce
+  // identical signatures, which collide with the relay's replay key. Keep ts
+  // strictly monotonic per client so back-to-back identical requests stay unique.
+  private lastTs = 0;
+
   constructor(
     readonly relayUrl: string,
     readonly handle: string,
@@ -65,7 +70,8 @@ export class ReefTransportClient {
   }
 
   private auth(path: string, bytes: Uint8Array, method: string): { ts: number; signature: string } {
-    const ts = this.clock();
+    const ts = Math.max(this.clock(), this.lastTs + 1);
+    this.lastTs = ts;
     const signature = signDeviceRequest({
       method: method.toUpperCase(), path, ts,
       bodySha256: sha256Hex(bytes),

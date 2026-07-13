@@ -72,4 +72,20 @@ describe("ReefTransportClient device authentication", () => {
       bodySha256: sha256Hex(new Uint8Array()),
     })).toBe(true);
   });
+
+  it("bumps ts monotonically so identical same-second requests never share a replay key", async () => {
+    const seenTs: string[] = [];
+    const fetcher: typeof fetch = async (_input, init) => {
+      seenTs.push(new Headers(init?.headers).get("x-reef-ts")!);
+      return Response.json({ friendships: [] });
+    };
+    const client = new ReefTransportClient("https://relay.example", "alice", keys, fetcher, () => ts);
+
+    await client.listFriends();
+    await client.listFriends();
+    await client.listFriends();
+
+    expect(seenTs).toEqual([String(ts), String(ts + 1), String(ts + 2)]);
+    expect(new Set(seenTs).size).toBe(3);
+  });
 });
