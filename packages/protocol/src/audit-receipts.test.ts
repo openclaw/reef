@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { appendAudit, appendInboxRead, decryptAuditText, exportRedactedJsonl, MemoryAuditStore, signCheckpoint, verifyChain, verifyCheckpoint, type AuditEntry } from "./audit.js";
 import { generateIdentity } from "./identity.js";
+import { base64url, fromBase64url, utf8 } from "./encoding.js";
+import { ed25519 } from "@noble/curves/ed25519.js";
 import { confirmDelivery, signReceipt, verifyReceipt, type SignedReceipt } from "./receipts.js";
 
 const auditKey = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
@@ -16,6 +18,8 @@ describe("audit", () => {
     const checkpoint = signCheckpoint(entries, identity.signing.secretKey);
     expect(verifyChain(entries, { head: entries.at(-1)!.entryHash, length: 3 })).toBe(true);
     expect(verifyCheckpoint(checkpoint, identity.signing.publicKey)).toBe(true);
+    const legacy = { head: checkpoint.head, signature: base64url(ed25519.sign(utf8(checkpoint.head), fromBase64url(identity.signing.secretKey))) };
+    expect(verifyCheckpoint(legacy, identity.signing.publicKey)).toBe(false);
     expect(entries.at(-1)!.event.type).toBe("read");
     expect(decryptAuditText(entries[0]!, auditKey).event.payload).toMatchObject({ text: "secret message" });
     expect(decryptAuditText(entries[1]!, auditKey).event.payload).toMatchObject({ reason: "looks safe" });

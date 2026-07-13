@@ -1,0 +1,21 @@
+{
+  "name": "@openclaw/reef-relay",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "dev": "wrangler dev --var DEV_MODE:1",
+    "test": "vitest run",
+    "types": "wrangler types --include-runtime false --strict-vars false"
+  },
+  "dependencies": {
+    "@openclaw/reef-protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.18.4",
+    "@cloudflare/workers-types": "5.20260713.1",
+    "@noble/curves": "2.2.0",
+    "wrangler": "4.110.0"
+  }
+}

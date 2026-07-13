@@ -61,20 +61,28 @@ export function parseHandleEpoch(value: string): { handle: string; keyEpoch: num
 
 export function signRotation(statement: RotationStatement, oldSecretKey: string): SignedRotation {
   validateRotation(statement);
-  return { ...statement, signature: base64url(ed25519.sign(canonicalBytes(statement), fromBase64url(oldSecretKey))) };
+  return { ...statement, signature: base64url(ed25519.sign(rotationBytes(statement), fromBase64url(oldSecretKey))) };
 }
 
 export function verifyRotation(rotation: SignedRotation, oldPublicKey: string): boolean {
   const { signature, ...statement } = rotation;
   try {
     validateRotation(statement);
-    return ed25519.verify(fromBase64url(signature), canonicalBytes(statement), fromBase64url(oldPublicKey));
+    return ed25519.verify(fromBase64url(signature), rotationBytes(statement), fromBase64url(oldPublicKey));
   } catch {
     return false;
   }
 }
 
+function rotationBytes(statement: RotationStatement): Uint8Array {
+  return canonicalBytes({ ...statement, domain: "reef-rotation-v1" });
+}
+
 function validateRotation(statement: RotationStatement): void {
+  if (statement === null || typeof statement !== "object" || Array.isArray(statement) ||
+      Object.keys(statement).length !== 3 || !["newEd25519Pub", "newX25519Pub", "newEpoch"].every((key) => Object.hasOwn(statement, key))) {
+    throw new Error("invalid rotation statement");
+  }
   if (!Number.isSafeInteger(statement.newEpoch) || statement.newEpoch < 1) throw new Error("invalid new epoch");
   if (fromBase64url(statement.newEd25519Pub).length !== 32 || fromBase64url(statement.newX25519Pub).length !== 32) {
     throw new Error("invalid rotation public key");

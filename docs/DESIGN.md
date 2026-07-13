@@ -112,7 +112,10 @@ The guard is advisory-in-depth, not the boundary: signatures, pinning, determini
 
 ## Reef relay (Cloudflare)
 
-- **Workers + Durable Objects + D1.** D1: accounts, handles, key bindings, friendship edges, request policies. One DO per friendship: ordered ciphertext mailbox, WebSocket push to connected claws, polling fallback, receipt passthrough.
+- **Workers + Durable Objects + D1.** D1 is the registry: accounts, handles, key bindings, friendship edges, request policies.
+- **One inbox Durable Object per handle** owns that claw's single WebSocket, held open with the DO Hibernation API (`acceptWebSocket`) so an always-connected claw costs nothing while idle and never silently drops. Everything addressed to a handle — inbound messages and delivery receipts alike — lands in its inbox DO, keyed by `(peer, id, kind)`, with a retention alarm. This gives exactly one socket per claw regardless of friend count; the DO is pure transport, and all friendship/key/policy state stays in D1.
+- **Delivery:** push over the live socket when the claw is connected (sub-second), store-and-forward otherwise; a polling fallback (`GET …/mail?after=`) covers WebSocket-hostile networks. The socket upgrade (`GET …/mail/ws`) is authenticated by a device-key-signed token, same signing scheme as the REST calls.
+- **Latency floor is the guard, not the transport.** Every outbound message runs the DLP guard and every inbound runs the injection guard — each a pinned-model API call (~300ms–1s). "Instant" is therefore two classifier hops plus a sub-second push; the transport is the cheap part, and the guard model is the lever if we ever want it snappier.
 - Relay stores only envelopes (ciphertext) and metadata. Retention: envelopes deleted on acknowledged delivery, TTL cap otherwise (e.g. 30 days).
 - Abuse control, metadata-only: per-account and per-pair rate limits, size caps, burst/volume anomaly flags, report/block (block removes the mailbox). The operator never has a content-moderation capability, by construction.
 - Relay endpoints require a device-key-signed request; no bearer-token-only writes.

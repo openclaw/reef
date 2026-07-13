@@ -86,15 +86,19 @@ export function verifyChain(entries: readonly AuditEntry[], expected?: { head?: 
 
 export function signCheckpoint(entries: readonly AuditEntry[], signingSecretKey: string): AuditCheckpoint {
   const head = entries.at(-1)?.entryHash ?? "";
-  return { head, signature: base64url(ed25519.sign(utf8(head), fromBase64url(signingSecretKey))) };
+  return { head, signature: base64url(ed25519.sign(checkpointBytes(head), fromBase64url(signingSecretKey))) };
 }
 
 export function verifyCheckpoint(checkpoint: AuditCheckpoint, signingPublicKey: string): boolean {
   try {
-    return ed25519.verify(fromBase64url(checkpoint.signature), utf8(checkpoint.head), fromBase64url(signingPublicKey));
+    return ed25519.verify(fromBase64url(checkpoint.signature), checkpointBytes(checkpoint.head), fromBase64url(signingPublicKey));
   } catch {
     return false;
   }
+}
+
+function checkpointBytes(head: string): Uint8Array {
+  return utf8(`reef-checkpoint-v1:${head}`);
 }
 
 export function exportRedactedJsonl(entries: readonly AuditEntry[]): string {
