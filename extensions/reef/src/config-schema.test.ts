@@ -17,7 +17,7 @@ describe("Reef configuration boundary", () => {
       email: "owner@example.com",
       guard: {
         provider: "anthropic",
-        pinnedModel: "claude-test-2026-07-12",
+        pinnedModel: "fixture-model-20260712",
         apiKeyEnv: "REEF_GUARD_API_KEY",
         policyVersion: "owner-policy-v2",
         timeoutMs: 5_000,
@@ -38,7 +38,7 @@ describe("Reef configuration boundary", () => {
     expect(result.data).toMatchObject({
       relayUrl: "https://relay.owner.example",
       requestPolicy: "friends-of-friends",
-      guard: { pinnedModel: "claude-test-2026-07-12", apiKeyEnv: "REEF_GUARD_API_KEY", policyVersion: "owner-policy-v2" },
+      guard: { pinnedModel: "fixture-model-20260712", apiKeyEnv: "REEF_GUARD_API_KEY", policyVersion: "owner-policy-v2" },
       friends: { peer: { keyEpoch: 2 } },
     });
   });

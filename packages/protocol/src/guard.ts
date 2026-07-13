@@ -35,8 +35,8 @@ const PINNED_MODEL = /(?:-\d{8}|-\d{4}-\d{2}-\d{2})$/;
 // Owner decision: OpenAI's gpt-5.6 generation publishes no dated snapshots, so
 // these exact named ids are admitted even though OpenAI does not contractually
 // guarantee the backend behind an undated id never changes — a provider-side
-// swap would be invisible to the echo check. Accepted residual risk; bare
-// family aliases like "gpt-5.6" stay rejected.
+// swap would be invisible to the echo check. Accepted residual risk.
+// Bare family aliases stay rejected.
 const UNDATED_IMMUTABLE_MODELS = new Set(["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]);
 
 export function assertPinnedModel(model: string): void {
