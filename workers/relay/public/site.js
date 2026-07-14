@@ -1,20 +1,5 @@
-// Staggered scroll reveal for sections; no-op under reduced motion.
-const revealables = document.querySelectorAll("[data-reveal]");
-if (revealables.length && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-  const io = new IntersectionObserver(
-    (entries, observer) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        entry.target.classList.add("in");
-        observer.unobserve(entry.target);
-      }
-    },
-    { rootMargin: "0px 0px -12% 0px", threshold: 0.12 },
-  );
-  for (const node of revealables) io.observe(node);
-} else {
-  for (const node of revealables) node.classList.add("in");
-}
+// Scroll reveal is pure CSS (animation-timeline: view() in styles.css) — no
+// JS observer, so content can never be left invisible by missed events.
 
 const signupForm = document.querySelector("[data-signup-form]");
 

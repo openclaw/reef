@@ -45,7 +45,9 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  overflow-x: hidden;
+  /* clip, not hidden: hidden makes body a scroll container, which would pin
+     the view() reveal timelines at progress 0 */
+  overflow-x: clip;
   background: var(--abyss);
   color: var(--paper);
   font: 400 16px/1.62 var(--sans);
@@ -244,7 +246,7 @@ header nav .git:hover {
 .section {
   width: var(--page);
   margin: auto;
-  padding: clamp(90px, 11vw, 168px) 0;
+  padding: clamp(84px, 9.5vw, 132px) 0;
   position: relative;
 }
 .section + .section {
@@ -496,6 +498,8 @@ p {
   color: var(--faint);
 }
 .verdict {
+  align-self: start;
+  margin-top: 3px;
   font: 500 10px var(--mono);
   letter-spacing: 0.08em;
   color: var(--muted);
@@ -538,7 +542,10 @@ p {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
   gap: clamp(40px, 7vw, 110px);
-  align-items: end;
+  align-items: start;
+}
+.problem .split > div {
+  padding-top: clamp(6px, 1.4vw, 22px);
 }
 .problem h2 {
   max-width: 12ch;
@@ -577,13 +584,20 @@ p {
 .flow-track {
   min-width: 900px;
   display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
-  align-items: center;
+  /* 5 nodes + 4 connectors = 9 columns */
+  grid-template-columns:
+    minmax(0, 1fr) clamp(26px, 3vw, 54px) minmax(0, 1fr) clamp(26px, 3vw, 54px)
+    minmax(0, 1.06fr) clamp(26px, 3vw, 54px) minmax(0, 1fr) clamp(26px, 3vw, 54px)
+    minmax(0, 1fr);
+  align-items: stretch;
   gap: 0;
   position: relative;
 }
 .flow-node {
-  padding: 26px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 26px 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: linear-gradient(160deg, var(--wash), transparent 70%);
@@ -623,10 +637,10 @@ p {
   letter-spacing: 0.04em;
 }
 .flow-link {
+  align-self: center;
   height: 1px;
   background: repeating-linear-gradient(90deg, var(--foam-dim) 0 5px, transparent 5px 11px);
   position: relative;
-  opacity: 0.7;
 }
 .flow-link::after {
   content: "";
@@ -640,12 +654,25 @@ p {
   transform: translateY(-50%) rotate(45deg);
 }
 .flow-relay {
-  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-top: 30px;
   text-align: center;
   color: var(--foam);
   font: 500 10px var(--mono);
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+.flow-relay::before,
+.flow-relay::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong));
+}
+.flow-relay::after {
+  background: linear-gradient(90deg, var(--line-strong), transparent);
 }
 
 /* ---------- 03 Mechanics ---------- */
@@ -761,7 +788,6 @@ p {
 }
 .tiers article {
   position: relative;
-  min-height: 260px;
   padding: 30px;
   display: flex;
   flex-direction: column;
@@ -798,6 +824,7 @@ p {
 .meter {
   display: flex;
   gap: 5px;
+  margin-top: 30px;
 }
 .meter i {
   width: 20px;
@@ -1026,14 +1053,24 @@ footer nav a:hover {
 
 /* ---------- Scroll reveal ---------- */
 
-[data-reveal] {
-  opacity: 0;
-  transform: translateY(26px);
-  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+/* Scroll reveal: a translate-only settle driven by CSS scroll-driven
+   animations. Content is never hidden — no opacity, no JS observer — so no
+   scroll speed, crawler, screenshot, or unsupported browser can ever see a
+   blank section; the worst case is content resting 16px lower. */
+@supports (animation-timeline: view()) {
+  [data-reveal] {
+    animation: reveal-rise 1ms linear both;
+    animation-timeline: view();
+    animation-range: entry 5% entry 45%;
+  }
 }
-[data-reveal].in {
-  opacity: 1;
-  transform: none;
+@keyframes reveal-rise {
+  from {
+    transform: translateY(16px);
+  }
+  to {
+    transform: none;
+  }
 }
 
 @keyframes rise {
@@ -1170,8 +1207,7 @@ footer nav a:hover {
     transition-duration: 0.001ms !important;
   }
   [data-reveal] {
-    opacity: 1;
-    transform: none;
+    animation: none;
   }
 }
 
