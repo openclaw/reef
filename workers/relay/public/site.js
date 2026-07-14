@@ -1,6 +1,68 @@
 // Scroll reveal is pure CSS (animation-timeline: view() in styles.css) — no
 // JS observer, so content can never be left invisible by missed events.
 
+// Depth gauge: page progress as metres of descent, homepage only.
+if (document.querySelector(".hero")) {
+  const gauge = document.createElement("div");
+  gauge.className = "depth";
+  gauge.setAttribute("aria-hidden", "true");
+  const readout = document.createElement("span");
+  gauge.append(readout);
+  document.body.append(gauge);
+
+  // Full ocean: the footer bottoms out at Challenger Deep.
+  const zone = (m) =>
+    m >= 10800
+      ? "CHALLENGER DEEP"
+      : m >= 6000
+        ? "HADAL"
+        : m >= 4000
+          ? "ABYSS"
+          : m >= 1000
+            ? "MIDNIGHT"
+            : m >= 200
+              ? "TWILIGHT"
+              : "SURFACE";
+  let last = "";
+  const update = () => {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    // clamp both ends: Safari reports negative scrollY during elastic overscroll
+    const ratio = max > 0 ? Math.min(Math.max(window.scrollY / max, 0), 1) : 0;
+    const metres = Math.round(ratio * 1092) * 10;
+    const text = `${String(metres).padStart(4, "0")} M · ${zone(metres)}`;
+    if (text !== last) {
+      last = text;
+      readout.textContent = text;
+    }
+  };
+  let queued = false;
+  const schedule = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      update();
+    });
+  };
+  window.addEventListener("scroll", schedule, { passive: true });
+  window.addEventListener("resize", schedule, { passive: true });
+  update();
+}
+
+// The tab seals its envelope while you're away.
+const baseTitle = document.title;
+document.addEventListener("visibilitychange", () => {
+  document.title = document.hidden ? "◆ channel sealed — Reef" : baseTitle;
+});
+
+// For the crew that opens the hatch.
+console.info(
+  "%c REEF %c channel monitor: no eavesdroppers detected.\n%cE2E encrypted · operator-blind · pinned guards at both ends · https://reefwire.ai/docs/",
+  "background:#ff6f4d;color:#04161b;font-weight:700;border-radius:3px;padding:2px 6px;",
+  "color:#7fd8c4;font-weight:600;",
+  "color:#5f827c;",
+);
+
 const signupForm = document.querySelector("[data-signup-form]");
 
 if (signupForm instanceof HTMLFormElement) {
