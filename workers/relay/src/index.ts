@@ -291,16 +291,45 @@ async function requestFriend(value: unknown, device: DeviceIdentity, env: Env): 
 }
 
 async function respondFriend(value: unknown, device: DeviceIdentity, env: Env): Promise<Response> {
-  const body = exactObject(value, ["peer", "accept"]);
+  const body = exactObject(value, [
+    "peer",
+    "accept",
+    "expected_key_epoch",
+    "expected_ed25519_pub",
+    "expected_x25519_pub",
+  ]);
   const peer = stringField(body, "peer").toLowerCase();
-  if (typeof body.accept !== "boolean" || !isHandle(peer)) throw new HttpError(400, "invalid_request");
+  const expectedKeyEpoch = body.expected_key_epoch;
+  const expectedEd25519 = publicKeyField(body, "expected_ed25519_pub");
+  const expectedX25519 = publicKeyField(body, "expected_x25519_pub");
+  if (
+    typeof body.accept !== "boolean" ||
+    !isHandle(peer) ||
+    !Number.isSafeInteger(expectedKeyEpoch) ||
+    (expectedKeyEpoch as number) < 1
+  ) throw new HttpError(400, "invalid_request");
   const pair = sortedPair(device.handle, peer);
   const friendship = await friendshipRow(env.DB, pair);
   if (!friendship || !["pending", "reapprove_required"].includes(friendship.status)) throw new HttpError(404, "not_found");
   if (friendship.status === "pending" && friendship.initiated_by === device.handle) throw new HttpError(403, "requester_cannot_respond");
   if (friendship.status === "reapprove_required" && friendship.reapprove_handle === device.handle) throw new HttpError(403, "peer_reapproval_required");
-  await env.DB.prepare("UPDATE friendships SET status = ?, reapprove_handle = NULL WHERE a_handle = ? AND b_handle = ?")
-    .bind(body.accept ? "active" : "blocked", pair[0], pair[1]).run();
+  const updated = await env.DB.prepare(`UPDATE friendships SET status = ?, reapprove_handle = NULL
+    WHERE a_handle = ? AND b_handle = ? AND status = ? AND initiated_by = ? AND reapprove_handle IS ?
+    AND EXISTS (SELECT 1 FROM handles
+      WHERE handle = ? AND key_epoch = ? AND ed25519_pub = ? AND x25519_pub = ?)`)
+    .bind(
+      body.accept ? "active" : "blocked",
+      pair[0],
+      pair[1],
+      friendship.status,
+      friendship.initiated_by,
+      friendship.reapprove_handle,
+      peer,
+      expectedKeyEpoch,
+      expectedEd25519,
+      expectedX25519,
+    ).run();
+  if ((updated.meta.changes ?? 0) !== 1) throw new HttpError(409, "friendship_changed");
   if (!body.accept) await purgeFriendshipMailboxes(device.handle, peer, env);
   return json({ peer, status: body.accept ? "active" : "blocked" });
 }

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { generateIdentity, seal, signRotation } from "@openclaw/reef-protocol";
 import { randomFriendCode } from "../src/crypto.js";
 import worker from "../src/index.js";
-import { api, becomeFriends, bodyOf, createUser, deviceApi, makeDeviceRequest, mintCode, nextId, receiptFor } from "./helpers.js";
+import { api, becomeFriends, bodyOf, createUser, deviceApi, friendshipResponseBody, makeDeviceRequest, mintCode, nextId, receiptFor } from "./helpers.js";
 
 describe("friend code generation", () => {
   it("uses the Crockford alphabet for every random index", () => {
@@ -165,7 +165,7 @@ describe("relay integration", () => {
     const codeOnly = await createUser("code-user", "code-only");
     const denied = await deviceApi(alice, "/v1/friends/request", { method: "POST", body: { to: codeOnly.handle } });
     expect((await bodyOf<{ status: string }>(denied)).status).toBe("pending");
-    expect((await deviceApi(codeOnly, "/v1/friends/respond", { method: "POST", body: { peer: alice.handle, accept: true } })).status).toBe(404);
+    expect((await deviceApi(codeOnly, "/v1/friends/respond", { method: "POST", body: friendshipResponseBody(alice, true) })).status).toBe(404);
     await becomeFriends(alice, codeOnly, await mintCode(codeOnly));
 
     const mutual = await createUser("mutual", "open");
@@ -175,9 +175,51 @@ describe("relay integration", () => {
     await env.DB.prepare("UPDATE handles SET request_policy = 'friends-of-friends' WHERE handle = ?").bind(fof.handle).run();
     const fofRequest = await deviceApi(alice, "/v1/friends/request", { method: "POST", body: { to: fof.handle } });
     expect(fofRequest.status).toBe(202);
-    expect((await deviceApi(fof, "/v1/friends/respond", { method: "POST", body: { peer: alice.handle, accept: true } })).status).toBe(200);
+    expect((await deviceApi(fof, "/v1/friends/respond", { method: "POST", body: friendshipResponseBody(alice, true) })).status).toBe(200);
     const friends = await bodyOf<{ friendships: Array<{ peer: string; vouching_mutual: string | null }> }>(await deviceApi(alice, "/v1/friends"));
     expect(friends.friendships.find((item) => item.peer === fof.handle)?.vouching_mutual).toBe(mutual.handle);
+  });
+
+  it("activates a friendship only for the exact peer keys that were approved", async () => {
+    const alice = await createUser("alice", "open");
+    const bob = await createUser("bob", "open");
+    expect((await deviceApi(alice, "/v1/friends/request", {
+      method: "POST",
+      body: { to: bob.handle },
+    })).status).toBe(202);
+    const approvedSnapshot = friendshipResponseBody(alice, true);
+
+    const rotated = generateIdentity();
+    const signedRotation = signRotation({
+      newEd25519Pub: rotated.signing.publicKey,
+      newX25519Pub: rotated.encryption.publicKey,
+      newEpoch: 2,
+    }, alice.identity.signing.secretKey);
+    expect((await deviceApi(alice, `/v1/handles/${alice.handle}/rotate`, {
+      method: "POST",
+      body: { signedRotation },
+    })).status).toBe(200);
+    alice.identity = rotated;
+
+    const staleAcceptance = await deviceApi(bob, "/v1/friends/respond", {
+      method: "POST",
+      body: approvedSnapshot,
+    });
+    expect(staleAcceptance.status).toBe(409);
+    await expect(staleAcceptance.json()).resolves.toEqual({ error: "friendship_changed" });
+    const pending = await bodyOf<{ friendships: Array<{ peer: string; status: string; key_epoch: number }> }>(
+      await deviceApi(bob, "/v1/friends"),
+    );
+    expect(pending.friendships).toContainEqual(expect.objectContaining({
+      peer: alice.handle,
+      status: "pending",
+      key_epoch: 2,
+    }));
+
+    expect((await deviceApi(bob, "/v1/friends/respond", {
+      method: "POST",
+      body: friendshipResponseBody(alice, true, 2),
+    })).status).toBe(200);
   });
 
   it("supports planned rotation and blocks recovery mail until peer reapproval", async () => {
@@ -204,8 +246,8 @@ describe("relay integration", () => {
       senderSigningSecretKey: alice.identity.signing.secretKey, recipientEncryptionPublicKey: bob.identity.encryption.publicKey,
     });
     expect((await deviceApi(alice, `/v1/mail/${bob.handle}`, { method: "POST", body: blockedEnvelope })).status).toBe(403);
-    expect((await deviceApi(alice, "/v1/friends/respond", { method: "POST", body: { peer: bob.handle, accept: true } })).status).toBe(403);
-    expect((await deviceApi(bob, "/v1/friends/respond", { method: "POST", body: { peer: alice.handle, accept: true } })).status).toBe(200);
+    expect((await deviceApi(alice, "/v1/friends/respond", { method: "POST", body: friendshipResponseBody(bob, true) })).status).toBe(403);
+    expect((await deviceApi(bob, "/v1/friends/respond", { method: "POST", body: friendshipResponseBody(alice, true, 3) })).status).toBe(200);
     expect((await deviceApi(alice, `/v1/mail/${bob.handle}`, { method: "POST", body: blockedEnvelope })).status).toBe(202);
     expect((await deviceApi(bob, "/v1/mail?after=0")).status).toBe(200);
   });

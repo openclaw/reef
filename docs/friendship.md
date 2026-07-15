@@ -14,7 +14,7 @@ The owner chooses a tier during setup and may change it later. Relay-side per-ac
 
 A valid request becomes an OpenClaw pairing event. It is never processed as a chat message. The recipient sees the handle, pairing code, and key fingerprint, then approves or rejects it through the normal pairing flow.
 
-Mutual approval pins both Ed25519 and X25519 public keys locally. The relay accepts mail only for active friendships; the endpoint separately drops mail from an unpinned peer.
+Mutual approval pins both Ed25519 and X25519 public keys locally. Acceptance carries that exact key epoch and key pair; the relay activates the friendship only while the peer still matches the approved snapshot. The relay accepts mail only for active friendships; the endpoint separately drops mail from an unpinned peer.
 
 Useful commands:
 
