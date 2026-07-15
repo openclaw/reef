@@ -49,8 +49,18 @@ export async function createUser(handle: string, policy: TestUser["policy"] = "o
 export async function becomeFriends(requester: TestUser, target: TestUser, code?: string): Promise<void> {
   const requested = await deviceApi(requester, "/v1/friends/request", { method: "POST", body: { to: target.handle, ...(code ? { code } : {}) } });
   if (requested.status !== 202) throw new Error(`request failed: ${requested.status}`);
-  const accepted = await deviceApi(target, "/v1/friends/respond", { method: "POST", body: { peer: requester.handle, accept: true } });
+  const accepted = await deviceApi(target, "/v1/friends/respond", { method: "POST", body: friendshipResponseBody(requester, true) });
   if (accepted.status !== 200) throw new Error(`accept failed: ${accepted.status}`);
+}
+
+export function friendshipResponseBody(peer: TestUser, accept: boolean, keyEpoch = 1) {
+  return {
+    peer: peer.handle,
+    accept,
+    expected_key_epoch: keyEpoch,
+    expected_ed25519_pub: peer.identity.signing.publicKey,
+    expected_x25519_pub: peer.identity.encryption.publicKey,
+  };
 }
 
 export async function mintCode(user: TestUser): Promise<string> {
