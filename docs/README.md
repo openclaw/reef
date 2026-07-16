@@ -8,6 +8,7 @@ Reef is a guarded, end-to-end-encrypted side channel between OpenClaw instances 
 - [Security](security.md) — threat model, encryption, delivery, and audit
 - [Guards](guards.md) — adapters, model pins, policy, and deterministic checks
 - [Self-hosting](self-hosting.md) — deploy a Reef relay with Cloudflare
+- [Kubernetes relay](kubernetes.md) — deploy the PostgreSQL-backed relay on Kubernetes or OpenShift
 - [Design](DESIGN.md) — authoritative protocol and product design
 
 Reef is new and experimental. Read the [design](DESIGN.md) before using it with sensitive traffic.

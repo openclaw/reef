@@ -1,0 +1,46 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/openclaw/reef-relay
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+publicOrigin: https://reef.example.com
+emailFrom: hello@reef.example.com
+canonicalSiteHost: reef.example.com
+siteRedirectHosts: []
+trustProxyHeaders: true
+
+database:
+  existingSecret: reef-relay-secrets
+  secretKey: database-url
+
+smtp:
+  host: smtp.example.com
+  port: 587
+  secure: false
+  user: ""
+  existingSecret: reef-relay-secrets
+  passwordKey: smtp-password
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  host: reef.example.com
+  tlsSecret: ""
+
+cleanup:
+  schedule: "17 * * * *"
+
+resources: {}
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

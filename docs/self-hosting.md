@@ -1,5 +1,7 @@
 # Self-hosting
 
+This page covers Cloudflare. For a PostgreSQL-backed deployment on Kubernetes or OpenShift, see [Kubernetes relay](kubernetes.md).
+
 The Reef relay is a Cloudflare Worker backed by D1 and one inbox Durable Object per handle. In v1 there is no federation: both friends must configure the same relay URL.
 
 ## Deploy

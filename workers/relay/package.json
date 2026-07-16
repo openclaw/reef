@@ -10,7 +10,8 @@
     "types": "wrangler types --include-runtime false --strict-vars false"
   },
   "dependencies": {
-    "@openclaw/reef-protocol": "workspace:*"
+    "@openclaw/reef-protocol": "workspace:*",
+    "@openclaw/reef-relay-core": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.18.4",

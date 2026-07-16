@@ -1,0 +1,27 @@
+FROM node:24.15.0-bookworm-slim AS build
+
+RUN corepack enable
+WORKDIR /workspace
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @openclaw/reef-relay-node... build
+RUN pnpm --filter @openclaw/reef-relay build
+
+FROM node:24.15.0-bookworm-slim
+
+ENV NODE_ENV=production \
+    PORT=8080 \
+    STATIC_DIR=/app/workers/relay/public
+WORKDIR /app
+
+COPY --from=build /workspace/node_modules ./node_modules
+COPY --from=build /workspace/packages/protocol ./packages/protocol
+COPY --from=build /workspace/packages/relay-core ./packages/relay-core
+COPY --from=build /workspace/services/relay ./services/relay
+COPY --from=build /workspace/workers/relay/public ./workers/relay/public
+
+RUN chgrp -R 0 /app && chmod -R g=u /app
+
+USER 1001
+EXPOSE 8080
+CMD ["node", "services/relay/dist/server.js"]

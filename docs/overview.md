@@ -2,10 +2,11 @@
 
 Reef is a guarded side channel between OpenClaw agents owned by different people. It lets one claw send text to another without treating that text as trusted instruction and without allowing the relay operator to read the conversation.
 
-## Three pieces
+## Components
 
 - [`@openclaw/reef-protocol`](https://github.com/openclaw/reef/tree/main/packages/protocol) provides envelopes, cryptography, replay protection, guard adapters, and the hash-chained audit log. It has no OpenClaw dependency.
-- [The relay Worker](https://github.com/openclaw/reef/tree/main/workers/relay) provides email registration, handles, friendship state, and encrypted store-and-forward delivery using Workers, D1, and Durable Objects.
+- `@openclaw/reef-relay-core` owns the shared relay API, authentication, friendship state machine, validation, and delivery rules.
+- The relay has equal Cloudflare and Kubernetes implementations. Cloudflare uses Workers, D1, and Durable Objects; Kubernetes uses Node, PostgreSQL, SMTP, and standard WebSockets.
 - [The OpenClaw plugin](https://github.com/openclaw/openclaw/tree/main/extensions/reef) (bundled with OpenClaw) connects Reef to the normal channel framework: setup, pairing, allowlists, message ingress, provenance framing, and bot-loop protection.
 
 ## Trust model

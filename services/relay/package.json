@@ -1,0 +1,25 @@
+{
+  "name": "@openclaw/reef-relay-node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "migrate": "node dist/migrate.js",
+    "cleanup": "node dist/cleanup.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@openclaw/reef-relay-core": "workspace:*",
+    "nodemailer": "9.0.3",
+    "pg": "8.22.0",
+    "ws": "8.21.1"
+  },
+  "devDependencies": {
+    "@openclaw/reef-protocol": "workspace:*",
+    "@types/nodemailer": "8.0.1",
+    "@types/pg": "8.20.0",
+    "@types/ws": "8.18.1"
+  }
+}

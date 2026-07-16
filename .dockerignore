@@ -1,0 +1,6 @@
+.git
+.pnpm-store
+**/dist
+**/node_modules
+coverage
+workers/relay/public/docs

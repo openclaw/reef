@@ -7,7 +7,7 @@ const relayDir = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(relayDir, "../..");
 const docsDir = path.join(repoRoot, "docs");
 const outputDir = path.join(relayDir, "public/docs");
-const preferredOrder = ["README.md", "overview.md", "getting-started.md", "friendship.md", "security.md", "guards.md", "self-hosting.md", "DESIGN.md"];
+const preferredOrder = ["README.md", "overview.md", "getting-started.md", "friendship.md", "security.md", "guards.md", "self-hosting.md", "kubernetes.md", "DESIGN.md"];
 const available = new Set((await readdir(docsDir)).filter((name) => name.endsWith(".md")));
 const sourceFiles = [...preferredOrder.filter((name) => available.delete(name)), ...[...available].sort()];
 

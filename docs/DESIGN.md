@@ -4,10 +4,12 @@ Design doc. Status: agreed 2026-07-12 (Peter), building. Supersedes the unsubmit
 
 ## Summary
 
-**Reef** is a guarded side channel between OpenClaw instances owned by different humans. Peter's claw messages Vincent's claw via a tool call; Vincent's claw notifies Vincent like any other channel message — or converses back within a bounded, audited autonomy budget. One brand, three pieces in this monorepo:
+**Reef** is a guarded side channel between OpenClaw instances owned by different humans. Peter's claw messages Vincent's claw via a tool call; Vincent's claw notifies Vincent like any other channel message — or converses back within a bounded, audited autonomy budget. One brand, shared protocol and relay behavior, and platform adapters:
 
 - **`packages/protocol`** (`@openclaw/reef-protocol`) — pure TypeScript: envelope, crypto, hash-chained audit log, guard adapters. No OpenClaw imports.
-- **`workers/relay`** — Cloudflare Workers + Durable Objects + D1: email-registered handle registry plus end-to-end-encrypted store-and-forward relay.
+- **`packages/relay-core`** (`@openclaw/reef-relay-core`) — runtime-neutral relay API, authentication, validation, friendship, and delivery behavior.
+- **`workers/relay`** — Cloudflare adapter using Workers, Durable Objects, D1, Email Sending, and Workers Assets.
+- **`services/relay`** — Kubernetes adapter using Node, PostgreSQL, SMTP, and standard WebSockets.
 - **OpenClaw channel plugin** — lives bundled in [openclaw/openclaw `extensions/reef`](https://github.com/openclaw/openclaw/tree/main/extensions/reef) with the protocol vendored; it wires Reef into the channel framework (pairing, allowlists, framing, bot-loop protection).
 
 The relay operator can never read message content. Every message passes deterministic checks and a pinned-model guard verdict on both the sending and receiving side, fails closed, and lands in a hash-chained local audit log.
@@ -32,7 +34,7 @@ People want their agents to talk to their friends' agents — share links, coord
 - Attachments or media. Text only, hard size cap.
 - Multi-device fan-out under one handle. A handle **is** one claw; humans hold as many handles as they have claws.
 - Relay federation. One relay per friend group; both friends must be on the same Reef instance. Protocol must not preclude federation later.
-- AWS or second-cloud deployment. Cloudflare only.
+- Storage or compute adapters beyond Cloudflare and PostgreSQL-backed Kubernetes.
 - Replacing Turnwire. It remains the OpenAI work↔personal boundary tool; Reef ports its semantics, not its code.
 
 ## Identity and registration
@@ -110,10 +112,12 @@ The guard is advisory-in-depth, not the boundary: signatures, pinning, determini
 - **Planned rotation** (old key available): the old key signs the new key. The unbroken chain of trust lets friends' claws accept automatically; `key_epoch` bumps; the audit chain continues across the rotation.
 - **Device loss** (old key gone): email magic link reclaims the *handle*, never silently rebinds trust. Every friend sees a Signal-style safety-number-changed event and must **re-approve the new fingerprint**; delivery to and from that handle halts until re-approval. Annoying by design — Reef alone must never be able to swap a key invisibly.
 
-## Reef relay (Cloudflare)
+## Reef relay
 
-- **Workers + Durable Objects + D1.** D1 is the registry: accounts, handles, key bindings, friendship edges, request policies.
-- **One inbox Durable Object per handle** owns that claw's single WebSocket, held open with the DO Hibernation API (`acceptWebSocket`) so an always-connected claw costs nothing while idle and never silently drops. Everything addressed to a handle — inbound messages and delivery receipts alike — lands in its inbox DO, keyed by `(peer, id, kind)`, with a retention alarm. This gives exactly one socket per claw regardless of friend count; the DO is pure transport, and all friendship/key/policy state stays in D1.
+- **Shared behavior.** Both deployments run the same relay core, API paths, request authentication, validation, friendship state machine, rate rules, and mailbox semantics. Contract tests prevent platform drift.
+- **Cloudflare.** D1 stores registry state; one SQLite-backed Durable Object per handle owns its queue, receipts, retention alarm, and hibernating WebSocket.
+- **Kubernetes.** PostgreSQL stores registry and mailbox state. Transactions and advisory locks serialize per-handle mailbox changes; `LISTEN/NOTIFY` sends cross-pod WebSocket notifications. SMTP sends magic links. Relay pods remain stateless.
+- **One logical inbox per handle** owns that claw's single WebSocket and queued envelopes/receipts. A connection generation replaces an older socket even when it belongs to another Kubernetes pod.
 - **Delivery:** push over the live socket when the claw is connected (sub-second), store-and-forward otherwise; a polling fallback (`GET …/mail?after=`) covers WebSocket-hostile networks. The socket upgrade (`GET …/mail/ws`) is authenticated by a device-key-signed token, same signing scheme as the REST calls.
 - **Latency floor is the guard, not the transport.** Every outbound message runs the DLP guard and every inbound runs the injection guard — each a pinned-model API call (~300ms–1s). "Instant" is therefore two classifier hops plus a sub-second push; the transport is the cheap part, and the guard model is the lever if we ever want it snappier.
 - Relay stores only envelopes (ciphertext) and metadata. Retention: envelopes deleted on acknowledged delivery, TTL cap otherwise (e.g. 30 days).
@@ -142,7 +146,7 @@ The guard is advisory-in-depth, not the boundary: signatures, pinning, determini
 ## Milestones
 
 1. **M1 — protocol package.** Envelope encode/verify/encrypt/decrypt, keypair + friend-code primitives, hash-chained audit log with signed checkpoints and redacted JSONL export, guard adapter interface + Anthropic/OpenAI adapters + deterministic checks, replay store. Vitest, no network in tests (guard adapters mocked; live smoke behind env flag).
-2. **M2 — relay worker.** Wrangler project: magic-link auth (dev-mode log delivery), handle/key registry, friendship tiers + codes + rate limits, mailbox DO with WS push + polling + receipts, retention. Miniflare/vitest-pool-workers integration tests.
+2. **M2 — relay.** Shared relay core; Cloudflare adapter with D1 and Durable Objects; Kubernetes adapter with PostgreSQL, SMTP, and WebSockets; magic-link auth, handle/key registry, friendship tiers, rate limits, polling, receipts, retention, and cross-platform integration tests.
 3. **M3 — channel plugin.** Setup wizard, friend management, guard config, transport client, channel entry + outbound adapter, autonomy budgets on top of bot-loop protection.
 4. **M4 — end-to-end self-test.** Two local OpenClaw instances (two handles, self-friended) + `wrangler dev` relay: pair, exchange guarded messages both directions, verify receipts, audit chains, replay rejection, injection-corpus messages get flagged inbound.
 

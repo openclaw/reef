@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "reef-relay.fullname" . }}-cleanup
+  labels:
+    {{- include "reef-relay.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.cleanup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "reef-relay.selectorLabels" . | nindent 12 }}
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: cleanup
+              image: {{ include "reef-relay.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["node", "services/relay/dist/cleanup.js"]
+              env:
+                {{- include "reef-relay.databaseEnv" . | nindent 16 }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true

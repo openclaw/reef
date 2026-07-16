@@ -1,0 +1,5 @@
+Configure each Reef-enabled OpenClaw with this relay URL:
+
+  {{ .Values.publicOrigin }}
+
+The chart expects PostgreSQL and SMTP credentials in Secret {{ .Values.database.existingSecret }}.
