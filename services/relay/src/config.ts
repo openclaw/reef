@@ -1,4 +1,6 @@
+import type { BlockList } from "node:net";
 import { fileURLToPath } from "node:url";
+import { parseTrustedProxies } from "./client-ip.js";
 
 export interface RelayNodeConfig {
   port: number;
@@ -6,7 +8,7 @@ export interface RelayNodeConfig {
   publicOrigin: string;
   emailFrom: string;
   developmentMode: boolean;
-  trustProxyHeaders: boolean;
+  trustedProxies: BlockList;
   staticDirectory: string;
   canonicalSiteHost: string;
   redirectHosts: ReadonlySet<string>;
@@ -39,7 +41,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): RelayNodeConfi
     publicOrigin,
     emailFrom: env.EMAIL_FROM ?? "hello@reefwire.ai",
     developmentMode,
-    trustProxyHeaders: env.TRUST_PROXY_HEADERS === "1",
+    trustedProxies: parseTrustedProxies(env.TRUSTED_PROXY_CIDRS),
     staticDirectory: env.STATIC_DIR ?? fileURLToPath(new URL("../../../workers/relay/public", import.meta.url)),
     canonicalSiteHost: env.CANONICAL_SITE_HOST ?? origin.hostname,
     redirectHosts: new Set((env.SITE_REDIRECT_HOSTS ?? "").split(",").map((host) => host.trim().toLowerCase()).filter(Boolean)),

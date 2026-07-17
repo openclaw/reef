@@ -11,7 +11,7 @@ publicOrigin: https://reef.example.com
 emailFrom: hello@reef.example.com
 canonicalSiteHost: reef.example.com
 siteRedirectHosts: []
-trustProxyHeaders: false
+trustedProxyCidrs: []
 
 database:
   existingSecret: reef-relay-secrets

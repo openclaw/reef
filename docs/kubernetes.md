@@ -42,6 +42,11 @@ publicOrigin: https://reef.example.com
 emailFrom: hello@reef.example.com
 canonicalSiteHost: reef.example.com
 
+# Use only the ingress controller's pod addresses or a narrowly scoped subnet.
+trustedProxyCidrs:
+  - 10.42.0.10
+  - 10.42.0.11
+
 database:
   existingSecret: reef-relay-secrets
   secretKey: database-url
@@ -118,13 +123,14 @@ The server consumes these environment variables:
 | `SMTP_SECURE` | no | Set to `1` for implicit TLS |
 | `SMTP_USER` | no | SMTP username |
 | `SMTP_PASSWORD` | no | SMTP password |
-| `TRUST_PROXY_HEADERS` | no | Trust the first `X-Forwarded-For` value when set to `1`; defaults off |
+| `TRUSTED_PROXY_CIDRS` | no | Comma-separated proxy addresses or CIDRs allowed to supply `X-Forwarded-For` |
 | `SITE_REDIRECT_HOSTS` | no | Comma-separated hosts redirected to the canonical host |
 | `DEV_MODE` | no | Logs and returns magic links; never enable in production |
 
-Only set the chart's `trustProxyHeaders` value to `true` when the relay Service
-is reachable exclusively through a trusted ingress that overwrites
-`X-Forwarded-For`. Leave it off if clients can reach the Service directly or the
-ingress preserves client-supplied forwarding headers.
+The chart's `trustedProxyCidrs` list is empty by default. Configure only the
+ingress controller's pod addresses or a narrowly scoped subnet, and only when
+the ingress overwrites `X-Forwarded-For`. The relay verifies the immediate TCP
+peer against this list before accepting the forwarded client address. Leave the
+list empty if the ingress preserves client-supplied forwarding headers.
 
 Health endpoints are `/livez` and `/readyz`.

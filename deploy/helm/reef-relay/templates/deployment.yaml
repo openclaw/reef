@@ -42,8 +42,8 @@ spec:
               value: {{ .Values.canonicalSiteHost | quote }}
             - name: SITE_REDIRECT_HOSTS
               value: {{ join "," .Values.siteRedirectHosts | quote }}
-            - name: TRUST_PROXY_HEADERS
-              value: {{ ternary "1" "0" .Values.trustProxyHeaders | quote }}
+            - name: TRUSTED_PROXY_CIDRS
+              value: {{ join "," .Values.trustedProxyCidrs | quote }}
             - name: SMTP_HOST
               value: {{ .Values.smtp.host | quote }}
             - name: SMTP_PORT

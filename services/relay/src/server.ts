@@ -3,6 +3,7 @@ import type { Duplex } from "node:stream";
 import { createRelayApp, LIMITS } from "@openclaw/reef-relay-core";
 import { WebSocketServer } from "ws";
 import { FileAssets } from "./assets.js";
+import { resolveClientIp } from "./client-ip.js";
 import { loadConfig } from "./config.js";
 import { createPool } from "./database.js";
 import { createEmailSender } from "./email.js";
@@ -93,8 +94,11 @@ function toWebRequest(request: IncomingMessage): Request {
     else headers.set(name, value);
   }
   headers.delete("x-reef-client-ip");
-  const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  headers.set("x-reef-client-ip", config.trustProxyHeaders && forwarded ? forwarded : request.socket.remoteAddress ?? "unknown");
+  headers.set("x-reef-client-ip", resolveClientIp(
+    request.socket.remoteAddress,
+    headers.get("x-forwarded-for"),
+    config.trustedProxies,
+  ));
   const method = request.method ?? "GET";
   const init: RequestInit & { duplex?: "half" } = { method, headers };
   if (method !== "GET" && method !== "HEAD") {
