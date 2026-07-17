@@ -64,6 +64,10 @@ Install the chart:
 helm upgrade --install reef deploy/helm/reef-relay --namespace reef --create-namespace -f values.yaml
 ```
 
+The chart requires an explicit image tag and rejects `latest` so an upgrade
+changes the pod template and runs the migration and relay containers from the
+same image version.
+
 The migration Job runs before installs and upgrades. The cleanup CronJob deletes expired ciphertext, acknowledgements, sessions, codes, and replay records. Relay pods are stateless and can be replaced without losing queued messages.
 
 ## OpenShift
@@ -114,8 +118,13 @@ The server consumes these environment variables:
 | `SMTP_SECURE` | no | Set to `1` for implicit TLS |
 | `SMTP_USER` | no | SMTP username |
 | `SMTP_PASSWORD` | no | SMTP password |
-| `TRUST_PROXY_HEADERS` | no | Trust the first `X-Forwarded-For` value when set to `1` |
+| `TRUST_PROXY_HEADERS` | no | Trust the first `X-Forwarded-For` value when set to `1`; defaults off |
 | `SITE_REDIRECT_HOSTS` | no | Comma-separated hosts redirected to the canonical host |
 | `DEV_MODE` | no | Logs and returns magic links; never enable in production |
+
+Only set the chart's `trustProxyHeaders` value to `true` when the relay Service
+is reachable exclusively through a trusted ingress that overwrites
+`X-Forwarded-For`. Leave it off if clients can reach the Service directly or the
+ingress preserves client-supplied forwarding headers.
 
 Health endpoints are `/livez` and `/readyz`.

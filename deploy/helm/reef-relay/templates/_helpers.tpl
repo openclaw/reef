@@ -19,7 +19,11 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{- define "reef-relay.image" -}}
-{{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+{{- $tag := required "image.tag is required and must identify an immutable image version" .Values.image.tag -}}
+{{- if eq $tag "latest" -}}
+{{- fail "image.tag must identify an immutable image version; latest is not allowed" -}}
+{{- end -}}
+{{ printf "%s:%s" .Values.image.repository $tag }}
 {{- end }}
 
 {{- define "reef-relay.databaseEnv" -}}

@@ -7,6 +7,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: reef
+          POSTGRES_PASSWORD: reef
+          POSTGRES_USER: reef
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U reef -d reef"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -18,4 +32,29 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r build
-      - run: pnpm -r test
+      - name: Test
+        env:
+          DATABASE_URL: postgres://reef:reef@127.0.0.1:5432/reef
+          DEV_MODE: "1"
+          PUBLIC_ORIGIN: http://127.0.0.1:8080
+        run: |
+          PORT=8080 pnpm --filter @openclaw/reef-relay-node start > "$RUNNER_TEMP/relay-8080.log" 2>&1 &
+          relay_8080=$!
+          PORT=8081 pnpm --filter @openclaw/reef-relay-node start > "$RUNNER_TEMP/relay-8081.log" 2>&1 &
+          relay_8081=$!
+          cleanup() {
+            kill "$relay_8080" "$relay_8081" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8080/readyz >/dev/null && \
+               curl --fail --silent http://127.0.0.1:8081/readyz >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --show-error http://127.0.0.1:8080/readyz
+          curl --fail --show-error http://127.0.0.1:8081/readyz
+          TEST_RELAY_URL=http://127.0.0.1:8080 \
+          TEST_RELAY_URL_SECOND=http://127.0.0.1:8081 \
+            pnpm -r test
