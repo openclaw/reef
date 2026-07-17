@@ -38,6 +38,7 @@ jobs:
           DEV_MODE: "1"
           PUBLIC_ORIGIN: http://127.0.0.1:8080
         run: |
+          pnpm --filter @openclaw/reef-relay-node migrate
           PORT=8080 pnpm --filter @openclaw/reef-relay-node start > "$RUNNER_TEMP/relay-8080.log" 2>&1 &
           relay_8080=$!
           PORT=8081 pnpm --filter @openclaw/reef-relay-node start > "$RUNNER_TEMP/relay-8081.log" 2>&1 &
