@@ -291,6 +291,19 @@ async function requestFriend(value: unknown, device: DeviceIdentity, env: Env): 
 }
 
 async function respondFriend(value: unknown, device: DeviceIdentity, env: Env): Promise<Response> {
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === 2 &&
+    Object.hasOwn(value, "peer") &&
+    Object.hasOwn(value, "accept")
+  ) {
+    const legacy = value as Record<string, unknown>;
+    if (typeof legacy.peer === "string" && isHandle(legacy.peer) && typeof legacy.accept === "boolean") {
+      throw new HttpError(409, "client_upgrade_required");
+    }
+  }
   const body = exactObject(value, [
     "peer",
     "accept",

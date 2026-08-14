@@ -180,6 +180,39 @@ describe("relay integration", () => {
     expect(friends.friendships.find((item) => item.peer === fof.handle)?.vouching_mutual).toBe(mutual.handle);
   });
 
+  it("reports exact legacy friendship responses without changing the pending request", async () => {
+    const alice = await createUser("alice", "open");
+    const bob = await createUser("bob", "open");
+    expect((await deviceApi(alice, "/v1/friends/request", {
+      method: "POST",
+      body: { to: bob.handle },
+    })).status).toBe(202);
+
+    for (const accept of [true, false]) {
+      const response = await deviceApi(bob, "/v1/friends/respond", {
+        method: "POST",
+        body: { peer: alice.handle, accept },
+      });
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toEqual({ error: "client_upgrade_required" });
+    }
+
+    const nearMiss = await deviceApi(bob, "/v1/friends/respond", {
+      method: "POST",
+      body: { peer: alice.handle, accept: true, extra: true },
+    });
+    expect(nearMiss.status).toBe(400);
+    await expect(nearMiss.json()).resolves.toEqual({ error: "invalid_request" });
+
+    const pending = await bodyOf<{ friendships: Array<{ peer: string; status: string }> }>(
+      await deviceApi(bob, "/v1/friends"),
+    );
+    expect(pending.friendships).toContainEqual(expect.objectContaining({
+      peer: alice.handle,
+      status: "pending",
+    }));
+  });
+
   it("activates a friendship only for the exact peer keys that were approved", async () => {
     const alice = await createUser("alice", "open");
     const bob = await createUser("bob", "open");

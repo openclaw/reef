@@ -23,6 +23,10 @@ pnpm --filter @openclaw/reef-relay exec wrangler deploy
 
 Point every participating Reef plugin at the deployed Worker URL.
 
+## Troubleshooting protocol versions
+
+Mixed old and new Reef client and relay generations fail closed during friendship approval. If the relay returns `client_upgrade_required`, upgrade both the self-hosted relay and the participating OpenClaw clients to current compatible releases before retrying; do not use or enable the legacy response format.
+
 ## Components
 
 D1 stores accounts, handles, public-key bindings, friendship edges, request policies, and metadata-only rate limits. It does not store plaintext messages.
