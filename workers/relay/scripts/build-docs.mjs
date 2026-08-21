@@ -1,7 +1,7 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { marked } from "marked";
+import { renderMarkdown, rewriteDocLinks } from "./docs-render.mjs";
 
 const relayDir = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(relayDir, "../..");
@@ -11,7 +11,6 @@ const preferredOrder = ["README.md", "overview.md", "getting-started.md", "frien
 const available = new Set((await readdir(docsDir)).filter((name) => name.endsWith(".md")));
 const sourceFiles = [...preferredOrder.filter((name) => available.delete(name)), ...[...available].sort()];
 
-marked.use({ gfm: true });
 await mkdir(outputDir, { recursive: true });
 
 const pages = await Promise.all(sourceFiles.map(async (sourceFile) => {
@@ -22,33 +21,13 @@ const pages = await Promise.all(sourceFiles.map(async (sourceFile) => {
 }));
 
 for (const page of pages) {
-  let content = await marked.parse(page.markdown);
-  content = addHeadingIds(rewriteDocLinks(content));
+  const content = rewriteDocLinks(renderMarkdown(page.markdown));
   const directory = page.slug ? path.join(outputDir, page.slug) : outputDir;
   await mkdir(directory, { recursive: true });
   await writeFile(path.join(directory, "index.html"), pageShell(page, pages, content));
 }
 
 console.log(`Generated ${pages.length} Reef documentation pages in ${outputDir}`);
-
-function rewriteDocLinks(html) {
-  return html.replace(/href="([A-Za-z0-9_-]+)\.md(#[^"]*)?"/g, (_match, name, hash = "") => {
-    const slug = name.toLowerCase() === "readme" ? "" : `${name.toLowerCase()}/`;
-    return `href="/docs/${slug}${hash}"`;
-  });
-}
-
-function addHeadingIds(html) {
-  const used = new Map();
-  return html.replace(/<h([1-6])>([\s\S]*?)<\/h\1>/g, (_match, level, inner) => {
-    const base = inner.replace(/<[^>]+>/g, "").replace(/&[a-z]+;/gi, " ").toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "section";
-    const count = used.get(base) ?? 0;
-    used.set(base, count + 1);
-    const id = count === 0 ? base : `${base}-${count + 1}`;
-    return `<h${level} id="${id}">${inner}</h${level}>`;
-  });
-}
 
 function pageShell(page, pages, content) {
   const nav = pages.map((item) => {
