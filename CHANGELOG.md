@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Refresh cryptography, relay tooling, Markdown rendering, and CI dependencies while retaining the supported Node.js versions and Vitest 4 compatibility.
+- Refresh cryptography, relay tooling, Markdown rendering, CI, and patched PostCSS/Nano ID test dependencies while retaining the supported Node.js versions and Vitest 4 compatibility.
 
 - Bound canonicalization and reject empty or null mail envelopes with HTTP 400 instead of 500. Thanks @SebTardif (#11).
 - Return `client_upgrade_required` for legacy friendship responses without mutating pending requests.
