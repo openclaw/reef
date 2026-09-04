@@ -13,10 +13,10 @@
     "@openclaw/reef-protocol": "workspace:*"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "0.18.4",
-    "@cloudflare/workers-types": "5.20260713.1",
-    "@noble/curves": "2.2.0",
-    "marked": "18.0.6",
-    "wrangler": "4.110.0"
+    "@cloudflare/vitest-pool-workers": "0.22.0",
+    "@cloudflare/workers-types": "5.20260904.1",
+    "@noble/curves": "2.4.0",
+    "marked": "18.0.11",
+    "wrangler": "4.129.0"
   }
 }

@@ -21,7 +21,7 @@ jobs:
       - uses: pnpm/action-setup@v6
         with:
           version: 10.34.5
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -34,4 +34,4 @@ jobs:
           accountId: 91b59577e757131d68d55a471fe32aca
           packageManager: pnpm
           workingDirectory: workers/relay
-          wranglerVersion: 4.110.0
+          wranglerVersion: 4.129.0
