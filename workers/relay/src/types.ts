@@ -14,6 +14,8 @@ export interface HandleRow {
 export interface FriendshipRow {
   a_handle: string;
   b_handle: string;
+  a_inbound_allowed: 0 | 1;
+  b_inbound_allowed: 0 | 1;
   status: FriendshipStatus;
   initiated_by: string;
   vouch_handle: string | null;

@@ -28,7 +28,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r build
       - run: pnpm -r test
-      - uses: cloudflare/wrangler-action@v4
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 91b59577e757131d68d55a471fe32aca
+          packageManager: pnpm
+          workingDirectory: workers/relay
+          wranglerVersion: 4.129.0
+          command: d1 migrations apply reef-relay --remote
+      - name: Deploy Relay
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 91b59577e757131d68d55a471fe32aca

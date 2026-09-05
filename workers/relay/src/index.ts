@@ -109,8 +109,9 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (request.method === "POST" && url.pathname === "/v1/friends/respond") return respondFriend(data.json, device, env);
   if (request.method === "GET" && url.pathname === "/v1/friends") return listFriends(device, env);
 
-  const friendDelete = /^\/v1\/friends\/([^/]+)$/.exec(url.pathname);
-  if (request.method === "DELETE" && friendDelete) return removeFriend(decodeURIComponent(friendDelete[1]!), device, env);
+  const friend = /^\/v1\/friends\/([^/]+)$/.exec(url.pathname);
+  if (request.method === "PATCH" && friend) return setInboundAllowed(decodeURIComponent(friend[1]!), data.json, device, env);
+  if (request.method === "DELETE" && friend) return removeFriend(decodeURIComponent(friend[1]!), device, env);
 
   if (request.method === "GET" && url.pathname === "/v1/mail/ws") return connectMailbox(device, request, env);
   if (request.method === "GET" && url.pathname === "/v1/mail") return pullMail(url, device, env);
@@ -348,15 +349,31 @@ async function respondFriend(value: unknown, device: DeviceIdentity, env: Env): 
 }
 
 async function listFriends(device: DeviceIdentity, env: Env): Promise<Response> {
-  const rows = await env.DB.prepare(`SELECT f.status, f.initiated_by, f.vouch_handle,
+  const rows = await env.DB.prepare(`SELECT f.a_handle, f.b_handle, f.a_inbound_allowed, f.b_inbound_allowed,
+    f.status, f.initiated_by, f.vouch_handle,
     h.handle, h.ed25519_pub, h.x25519_pub, h.key_epoch
     FROM friendships f JOIN handles h ON h.handle = CASE WHEN f.a_handle = ? THEN f.b_handle ELSE f.a_handle END
     WHERE f.a_handle = ? OR f.b_handle = ? ORDER BY h.handle`)
-    .bind(device.handle, device.handle, device.handle).all<{ status: string; initiated_by: string; vouch_handle: string | null; handle: string; ed25519_pub: string; x25519_pub: string; key_epoch: number }>();
+    .bind(device.handle, device.handle, device.handle).all<FriendshipRow & { handle: string; ed25519_pub: string; x25519_pub: string; key_epoch: number }>();
   return json({ friendships: rows.results.map((row) => ({
     peer: row.handle, status: row.status, initiated_by: row.initiated_by, vouching_mutual: row.vouch_handle,
     ed25519_pub: row.ed25519_pub, x25519_pub: row.x25519_pub, key_epoch: row.key_epoch,
+    inbound_allowed: inboundAllowed(row, device.handle),
+    outbound_allowed: inboundAllowed(row, row.handle),
   })) });
+}
+
+async function setInboundAllowed(peer: string, value: unknown, device: DeviceIdentity, env: Env): Promise<Response> {
+  const body = exactObject(value, ["inbound_allowed"]);
+  if (!isHandle(peer)) throw new HttpError(404, "not_found");
+  if (typeof body.inbound_allowed !== "boolean") throw new HttpError(400, "invalid_request");
+  const friendship = await requireActiveFriend(peer, device.handle, env);
+  const column = device.handle === friendship.a_handle ? "a_inbound_allowed" : "b_inbound_allowed";
+  const updated = await env.DB.prepare(`UPDATE friendships SET ${column} = ?
+    WHERE a_handle = ? AND b_handle = ? AND status = 'active'`)
+    .bind(body.inbound_allowed ? 1 : 0, friendship.a_handle, friendship.b_handle).run();
+  if ((updated.meta.changes ?? 0) !== 1) throw new HttpError(409, "friendship_changed");
+  return json({ peer, inbound_allowed: body.inbound_allowed });
 }
 
 async function removeFriend(peer: string, device: DeviceIdentity, env: Env): Promise<Response> {
@@ -370,7 +387,8 @@ async function removeFriend(peer: string, device: DeviceIdentity, env: Env): Pro
 }
 
 async function sendMail(peer: string, value: unknown, device: DeviceIdentity, env: Env): Promise<Response> {
-  const pair = await requireActiveFriend(peer, device.handle, env);
+  const friendship = await requireActiveFriend(peer, device.handle, env);
+  if (!inboundAllowed(friendship, peer)) throw new HttpError(403, "friendship_direction_disabled");
   if (value === null || value === undefined || typeof value !== "object") throw new HttpError(400, "invalid_envelope");
   let size: number;
   try {
@@ -384,7 +402,7 @@ async function sendMail(peer: string, value: unknown, device: DeviceIdentity, en
   const peerRow = await getHandle(env.DB, peer);
   if (!peerRow || envelope.to !== formatHandleEpoch(peer, peerRow.key_epoch)) throw new HttpError(400, "invalid_envelope_peers");
   if (!await verifyEnvelopeForRelay(value, device.row.ed25519_pub)) throw new HttpError(400, "invalid_envelope");
-  const rateKey = pairName(pair[0], pair[1]);
+  const rateKey = pairName(friendship.a_handle, friendship.b_handle);
   await consumeRate(env.DB, `mail-hour:${rateKey}`, 3600, LIMITS.mailPerPairHour);
   await consumeRate(env.DB, `mail-minute:${rateKey}`, 60, LIMITS.mailBurstPerMinute);
   const result = await mailbox(env, peer).enqueue(device.handle, envelope.id, "message", JSON.stringify(envelope), nowSeconds());
@@ -466,7 +484,7 @@ function canonicalSignedPath(url: URL): string {
 function isDeviceRoute(method: string, path: string): boolean {
   if (method === "POST" && ["/v1/friend-codes", "/v1/friends/request", "/v1/friends/respond", "/v1/report"].includes(path)) return true;
   if (method === "GET" && path === "/v1/friends") return true;
-  if (method === "DELETE" && /^\/v1\/friends\/[^/]+$/.test(path)) return true;
+  if ((method === "PATCH" || method === "DELETE") && /^\/v1\/friends\/[^/]+$/.test(path)) return true;
   if (method === "GET" && (path === "/v1/mail" || path === "/v1/mail/ws")) return true;
   return method === "POST" && /^\/v1\/mail\/[^/]+(?:\/ack)?$/.test(path);
 }
@@ -486,12 +504,12 @@ function sessionToken(request: Request): string | undefined {
   return match?.[1];
 }
 
-async function requireActiveFriend(peer: string, handle: string, env: Env): Promise<readonly [string, string]> {
+async function requireActiveFriend(peer: string, handle: string, env: Env): Promise<FriendshipRow> {
   if (!isHandle(peer) || peer === handle) throw new HttpError(404, "not_found");
   const pair = sortedPair(handle, peer);
   const row = await friendshipRow(env.DB, pair);
   if (row?.status !== "active") throw new HttpError(403, "friendship_not_active");
-  return pair;
+  return row;
 }
 
 async function getHandle(db: D1Database, handle: string): Promise<HandleRow | null> {
@@ -500,8 +518,16 @@ async function getHandle(db: D1Database, handle: string): Promise<HandleRow | nu
 }
 
 async function friendshipRow(db: D1Database, pair: readonly [string, string]): Promise<FriendshipRow | null> {
-  return db.prepare("SELECT a_handle, b_handle, status, initiated_by, vouch_handle, reapprove_handle, created FROM friendships WHERE a_handle = ? AND b_handle = ?")
+  return db.prepare(`SELECT a_handle, b_handle, a_inbound_allowed, b_inbound_allowed,
+    status, initiated_by, vouch_handle, reapprove_handle, created
+    FROM friendships WHERE a_handle = ? AND b_handle = ?`)
     .bind(pair[0], pair[1]).first<FriendshipRow>();
+}
+
+function inboundAllowed(friendship: FriendshipRow, handle: string): boolean {
+  return handle === friendship.a_handle
+    ? friendship.a_inbound_allowed === 1
+    : friendship.b_inbound_allowed === 1;
 }
 
 async function mutualFriend(db: D1Database, a: string, b: string): Promise<string | null> {

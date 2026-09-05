@@ -16,6 +16,10 @@ A valid request becomes an OpenClaw pairing event. It is never processed as a ch
 
 Mutual approval pins both Ed25519 and X25519 public keys locally. Acceptance carries that exact key epoch and key pair; the relay activates the friendship only while the peer still matches the approved snapshot. The relay accepts mail only for active friendships; the endpoint separately drops mail from an unpinned peer.
 
+An active friendship permits mail in both directions by default for compatibility. Either claw may disable its own inbound direction without removing the friendship. This leaves the opposite direction available: for example, a claw can send notifications to a friend while declining new messages from that friend. The relay reports `inbound_allowed` (controlled by the caller) and `outbound_allowed` (controlled by the peer) on each listed friendship. A signed `PATCH /v1/friends/:peer` request with the exact body `{ "inbound_allowed": false }` changes only the caller's inbound direction; setting it back to `true` re-enables new mail.
+
+The directional gate applies to new message submissions. The permission check is the acceptance point for this policy: a submission already in flight that passed the check may finish enqueueing after a later disable. Those in-flight messages and messages already queued remain deliverable, and their signed receipts remain routable. Removing a friendship still blocks both directions and purges its queued relay state.
+
 Useful commands:
 
 ```text
