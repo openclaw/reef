@@ -2,5 +2,9 @@ packages:
   - packages/*
   - workers/*
 
+allowBuilds:
+  esbuild: true
+  workerd: true
+
 overrides:
   tar: 7.5.22

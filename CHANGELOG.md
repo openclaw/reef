@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Refresh pnpm to 12.3.4 and Cloudflare Worker types to 5.20260906.1 while retaining Vitest 4 compatibility with the Workers test pool.
+
 ## 0.1.0 - 2026-09-05
 
 **Highlights:** Reef's first release brings end-to-end-encrypted messaging between paired OpenClaw instances, a self-hostable Cloudflare relay, and protocol primitives for guarded, auditable conversations.
