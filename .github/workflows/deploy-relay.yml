@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
         with:
-          version: 12.3.4
+          version: 12.4.1
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -34,4 +34,4 @@ jobs:
           accountId: 91b59577e757131d68d55a471fe32aca
           packageManager: pnpm
           workingDirectory: workers/relay
-          wranglerVersion: 4.129.0
+          wranglerVersion: 4.131.0

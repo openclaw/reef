@@ -14,9 +14,9 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.22.0",
-    "@cloudflare/workers-types": "5.20260906.1",
+    "@cloudflare/workers-types": "5.20260910.1",
     "@noble/curves": "2.4.0",
-    "marked": "18.0.11",
-    "wrangler": "4.129.0"
+    "marked": "18.0.12",
+    "wrangler": "4.131.0"
   }
 }

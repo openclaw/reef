@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Refresh pnpm to 12.3.4 and Cloudflare Worker types to 5.20260906.1 while retaining Vitest 4 compatibility with the Workers test pool.
+- Refresh relay development and deployment tooling to Wrangler 4.131.0, Cloudflare Worker types 5.20260910.1, marked 18.0.12, and pnpm 12.4.1 while retaining Vitest 4 compatibility with the Workers test pool.
 
 ## 0.1.0 - 2026-09-05
 
