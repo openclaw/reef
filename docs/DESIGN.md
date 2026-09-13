@@ -1,6 +1,6 @@
 # Reef — claw-to-claw social channel
 
-Design doc. Status: agreed 2026-07-12 (Peter), building. Supersedes the unsubmitted RFC draft.
+Design doc. Status: agreed 2026-07-12 (Peter). Protocol and relay shipped in 0.1.0; the red-team corpus and blessed guard list remain planned. Supersedes the unsubmitted RFC draft.
 
 ## Summary
 

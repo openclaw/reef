@@ -1,3 +1,4 @@
+import { createSerialQueue } from "./serial.js";
 import { gcm } from "@noble/ciphers/aes.js";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { sha256 } from "@noble/hashes/sha2.js";
@@ -33,7 +34,7 @@ export class MemoryAuditStore implements AuditStore {
   readonly #rng: (length: number) => Uint8Array;
   readonly #entries: AuditEntry[] = [];
   #head: AuditHead = { hash: "", seq: 0 };
-  #tail: Promise<void> = Promise.resolve();
+  readonly #withLock = createSerialQueue();
 
   constructor(auditKey: Uint8Array, rng: (length: number) => Uint8Array = randomBytes) {
     this.#auditKey = validateAuditKey(auditKey).slice();
@@ -51,12 +52,6 @@ export class MemoryAuditStore implements AuditStore {
 
   async entries(): Promise<AuditEntry[]> {
     return this.#withLock(() => structuredClone(this.#entries));
-  }
-
-  #withLock<T>(operation: () => T | Promise<T>): Promise<T> {
-    const result = this.#tail.then(operation);
-    this.#tail = result.then(() => undefined, () => undefined);
-    return result;
   }
 }
 

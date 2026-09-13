@@ -1,3 +1,4 @@
+import { replayKey, validateCompletion, type ReplayRecord } from "./replay-state.js";
 import type { MessageBody } from "./envelope.js";
 import type { SignedReceipt } from "./receipts.js";
 
@@ -14,13 +15,6 @@ export interface ReplayStore {
   consume(peer: string, id: string): Promise<void>;
   release(peer: string, id: string): Promise<void>;
   completed(peer: string, id: string): Promise<CompletedReplay | undefined>;
-}
-
-interface ReplayRecord {
-  envelopeHash: string;
-  state: "available" | "in_flight" | "completed" | "consumed";
-  receipt?: SignedReceipt;
-  body?: MessageBody;
 }
 
 export class MemoryReplayStore implements ReplayStore {
@@ -69,15 +63,5 @@ export class MemoryReplayStore implements ReplayStore {
     return existing.body === undefined
       ? { receipt: structuredClone(existing.receipt) }
       : { receipt: structuredClone(existing.receipt), body: structuredClone(existing.body) };
-  }
-}
-
-function replayKey(peer: string, id: string): string {
-  return `${peer}\n${id}`;
-}
-
-function validateCompletion(receipt: SignedReceipt, body: MessageBody | undefined): void {
-  if ((receipt.status === "accepted") !== (body !== undefined)) {
-    throw new Error("accepted replay completion requires body; rejected completion forbids body");
   }
 }

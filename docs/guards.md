@@ -23,6 +23,6 @@ A `review` verdict creates a local approval request bound to the full proposal d
 
 ## Blessed list
 
-The repository's red-team corpus covers injection, exfiltration, and benign-but-unusual messages. Provider/snapshot pairs that pass form the published blessed list. Owners may choose another immutable snapshot, but `doctor` warns when it is unblessed. Snapshot changes are release decisions gated by the corpus, not silent config drift.
+The design calls for a red-team corpus covering injection, exfiltration, and benign-but-unusual messages, with a published list of provider/snapshot pairs that pass. That corpus and blessed list have not shipped in this repository. The current tests exercise adapter admission and fail-closed behavior with recorded responses; the opt-in live smoke tests are not a classifier safety evaluation. Do not treat an admitted model ID as a certified guard.
 
 See the [guard source](https://github.com/openclaw/reef/tree/main/packages/protocol/src) and [design](DESIGN.md#guard-pipeline-both-directions-both-endpoints).

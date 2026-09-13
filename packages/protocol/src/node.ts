@@ -1,3 +1,5 @@
+import { replayKey, validateCompletion, type ReplayRecord } from "./replay-state.js";
+import { createSerialQueue } from "./serial.js";
 import { mkdir, open as openFile, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { gcm } from "@noble/ciphers/aes.js";
@@ -15,7 +17,7 @@ export class JsonlAuditStore implements AuditStore {
   readonly #entries: AuditEntry[] = [];
   #head = { hash: "", seq: 0 };
   #loaded = false;
-  #tail: Promise<void> = Promise.resolve();
+  readonly #withLock = createSerialQueue();
 
   constructor(readonly path: string, auditKey: Uint8Array, rng: (length: number) => Uint8Array = randomBytes) {
     if (auditKey.length !== 32) throw new Error("audit key must be 32 bytes");
@@ -50,19 +52,6 @@ export class JsonlAuditStore implements AuditStore {
     this.#head = { hash: last?.entryHash ?? "", seq: last?.event.seq ?? 0 };
     this.#loaded = true;
   }
-
-  #withLock<T>(operation: () => T | Promise<T>): Promise<T> {
-    const result = this.#tail.then(operation);
-    this.#tail = result.then(() => undefined, () => undefined);
-    return result;
-  }
-}
-
-interface FileReplayRecord {
-  envelopeHash: string;
-  state: "available" | "in_flight" | "completed" | "consumed";
-  receipt?: SignedReceipt;
-  body?: MessageBody;
 }
 
 interface EncryptedReplayBody {
@@ -78,9 +67,9 @@ type ReplayLogRecord =
 export class FileReplayStore implements ReplayStore {
   readonly #bodyKey: Uint8Array;
   readonly #rng: (length: number) => Uint8Array;
-  readonly #bindings = new Map<string, FileReplayRecord>();
+  readonly #bindings = new Map<string, ReplayRecord>();
   #loaded = false;
-  #tail: Promise<void> = Promise.resolve();
+  readonly #withLock = createSerialQueue();
 
   constructor(readonly path: string, bodyKey: Uint8Array, rng: (length: number) => Uint8Array = randomBytes) {
     if (bodyKey.length !== 32) throw new Error("replay body key must be 32 bytes");
@@ -192,16 +181,6 @@ export class FileReplayStore implements ReplayStore {
     }
     this.#loaded = true;
   }
-
-  #withLock<T>(operation: () => T | Promise<T>): Promise<T> {
-    const result = this.#tail.then(operation);
-    this.#tail = result.then(() => undefined, () => undefined);
-    return result;
-  }
-}
-
-function replayKey(peer: string, id: string): string {
-  return `${peer}\n${id}`;
 }
 
 async function appendDurably(path: string, contents: string): Promise<void> {
@@ -233,12 +212,6 @@ function decryptReplayBody(body: EncryptedReplayBody, key: Uint8Array): MessageB
   const value = JSON.parse(decodeUtf8(plaintext)) as unknown;
   validateMessageBody(value);
   return value;
-}
-
-function validateCompletion(receipt: SignedReceipt, body: MessageBody | undefined): void {
-  if ((receipt.status === "accepted") !== (body !== undefined)) {
-    throw new Error("accepted replay completion requires body; rejected completion forbids body");
-  }
 }
 
 async function readJsonl<T>(path: string): Promise<T[]> {
