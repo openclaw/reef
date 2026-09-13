@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Refresh locked test tooling to Vite 8.3.0 and Rolldown 1.2.8, with current compatible transitive dependencies.
 - Preserve valid unterminated audit and replay JSONL records on reopen so subsequent writes cannot erase history or reopen consumed replay claims.
 - Make opt-in live guard smoke tests fail on missing configuration and unsuccessful provider verdicts.
 - Generate unique documentation heading anchors when literal titles collide with automatically numbered duplicates.
