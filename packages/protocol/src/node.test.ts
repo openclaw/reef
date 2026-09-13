@@ -47,6 +47,36 @@ describe("Node stores", () => {
     expect(await new JsonlAuditStore(path, auditKey).entries()).toHaveLength(3);
   });
 
+  it("separates a valid unterminated audit record from the next append", async () => {
+    const directory = await temporaryDirectory("reef-audit-newline-");
+    const path = join(directory, "audit.jsonl");
+    await new JsonlAuditStore(path, auditKey).appendEvent("first", { text: "hello 🦞" }, 10);
+    await writeFile(path, (await readFile(path, "utf8")).trimEnd());
+
+    const reopened = new JsonlAuditStore(path, auditKey);
+    expect(await reopened.entries()).toHaveLength(1);
+    await reopened.appendEvent("second", { id: 2 }, 11);
+    const entries = await new JsonlAuditStore(path, auditKey).entries();
+    expect(entries.map((entry) => entry.event.type)).toEqual(["first", "second"]);
+    expect(verifyChain(entries)).toBe(true);
+  });
+
+  it("preserves consumed replay claims after appending to an unterminated log", async () => {
+    const directory = await temporaryDirectory("reef-replay-newline-");
+    const path = join(directory, "replay.jsonl");
+    const store = new FileReplayStore(path, replayBodyKey);
+    await store.claim("alice", receiptId, "c".repeat(64));
+    await store.consume("alice", receiptId);
+    await writeFile(path, (await readFile(path, "utf8")).trimEnd());
+
+    const reopened = new FileReplayStore(path, replayBodyKey);
+    expect(await reopened.claim("bob", receiptId, "d".repeat(64))).toBe("new");
+    const verified = new FileReplayStore(path, replayBodyKey);
+    expect(await verified.claim("alice", receiptId, "c".repeat(64))).toBe("duplicate");
+    expect(await verified.claim("alice", receiptId, "d".repeat(64))).toBe("mismatch");
+    expect(await verified.claim("bob", receiptId, "wrong")).toBe("mismatch");
+  });
+
   it("rejects a corrupt middle JSONL record", async () => {
     const directory = await temporaryDirectory("reef-audit-corrupt-");
     const path = join(directory, "audit.jsonl");

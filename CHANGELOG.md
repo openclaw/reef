@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preserve valid unterminated audit and replay JSONL records on reopen so subsequent writes cannot erase history or reopen consumed replay claims.
+
 - Patch the Workers test pool’s transitive sharp/libheif vulnerabilities with sharp 0.35.4.
 
 - Refresh Wrangler to 4.131.1, Worker types to 5.20260911.1, and Node types to 26.5.1; test supported Node lines in CI and deploy with the lockfile-pinned Wrangler.

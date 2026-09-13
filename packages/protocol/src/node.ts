@@ -237,9 +237,12 @@ async function readJsonl<T>(path: string): Promise<T[]> {
       } catch (error) {
         if (index !== finalNonempty) throw error;
         await truncateDurably(path, new TextEncoder().encode(contents.slice(0, lineStart)).length);
-        break;
+        return records;
       }
     }
+    // A crash can leave complete JSON without its delimiter. Preserve that record
+    // and durably separate it before a later append can join two JSON objects.
+    if (contents.length > 0 && !contents.endsWith("\n")) await appendDurably(path, "\n");
     return records;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
