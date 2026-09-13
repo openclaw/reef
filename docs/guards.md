@@ -26,3 +26,18 @@ A `review` verdict creates a local approval request bound to the full proposal d
 The design calls for a red-team corpus covering injection, exfiltration, and benign-but-unusual messages, with a published list of provider/snapshot pairs that pass. That corpus and blessed list have not shipped in this repository. The current tests exercise adapter admission and fail-closed behavior with recorded responses; the opt-in live smoke tests are not a classifier safety evaluation. Do not treat an admitted model ID as a certified guard.
 
 See the [guard source](https://github.com/openclaw/reef/tree/main/packages/protocol/src) and [design](DESIGN.md#guard-pipeline-both-directions-both-endpoints).
+
+## Live adapter checks
+
+The default test suite uses recorded provider responses. To call both providers,
+set `OPENAI_API_KEY`, `REEF_OPENAI_MODEL`, `ANTHROPIC_API_KEY`, and
+`REEF_ANTHROPIC_MODEL` in your environment, then run:
+
+```sh
+REEF_LIVE_GUARD=1 pnpm --filter @openclaw/reef-protocol exec vitest run src/guard.test.ts
+```
+
+Explicit opt-in requires all four values. Each smoke sends the synthetic text
+`meeting at ten` and requires an `allow` verdict with the configured model and policy
+version. Missing configuration, provider errors, malformed responses and timeouts
+fail the smoke; these checks are not a red-team safety evaluation.

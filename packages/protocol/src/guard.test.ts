@@ -122,21 +122,20 @@ describe("provider adapters", () => {
 });
 
 describe.skipIf(process.env.REEF_LIVE_GUARD !== "1")("live guard smoke", () => {
-  it("calls OpenAI only when explicitly enabled", async () => {
-    const liveModel = process.env.REEF_OPENAI_MODEL;
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!liveModel || !apiKey) return;
-    const guard = createOpenAiGuard({ apiKey, pinnedModel: liveModel, fetch });
-    expect((await guard.classify(request)).model).toBe(liveModel);
-  });
-
-  it("calls Anthropic only when explicitly enabled", async () => {
-    const liveModel = process.env.REEF_ANTHROPIC_MODEL;
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!liveModel || !apiKey) return;
-    const guard = createAnthropicGuard({ apiKey, pinnedModel: liveModel, fetch });
-    expect((await guard.classify(request)).model).toBe(liveModel);
-  });
+  it.each([
+    { provider: "OpenAI", modelEnv: "REEF_OPENAI_MODEL", keyEnv: "OPENAI_API_KEY", create: createOpenAiGuard },
+    { provider: "Anthropic", modelEnv: "REEF_ANTHROPIC_MODEL", keyEnv: "ANTHROPIC_API_KEY", create: createAnthropicGuard },
+  ])("calls $provider only when explicitly enabled", async ({ modelEnv, keyEnv, create }) => {
+    const liveModel = process.env[modelEnv];
+    const apiKey = process.env[keyEnv];
+    if (!liveModel || !apiKey) throw new Error(`Live guard smoke requires ${modelEnv} and ${keyEnv}`);
+    const guard = create({ apiKey, pinnedModel: liveModel, fetch, timeoutMs: 20_000 });
+    expect(await guard.classify(request)).toMatchObject({
+      decision: "allow",
+      model: liveModel,
+      policyVersion: request.policyVersion,
+    });
+  }, 30_000);
 });
 
 function jsonResponse(value: unknown, status = 200): Response {
