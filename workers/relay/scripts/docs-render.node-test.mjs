@@ -10,6 +10,19 @@ describe("documentation rendering", () => {
     assert.match(html, /<h2 id="hello-world-2">Hello world<\/h2>/);
   });
 
+  it("avoids collisions between generated suffixes and literal heading slugs", () => {
+    for (const headings of [
+      ["Topic", "Topic", "Topic 2", "Topic", "Topic 2"],
+      ["Topic 2", "Topic", "Topic", "Topic 2"],
+    ]) {
+      const html = renderMarkdown(headings.map((heading) => `## ${heading}`).join("\n\n"));
+      const ids = [...html.matchAll(/<h2 id="([^"]+)"/g)].map((match) => match[1]);
+      assert.equal(ids.length, headings.length);
+      assert.equal(new Set(ids).size, headings.length);
+      assert.equal(ids[0], headings[0].toLowerCase().replaceAll(" ", "-"));
+    }
+  });
+
   it("derives heading ids from parsed text instead of deleting HTML substrings", () => {
     const nestedTag = ["# <scr", "<script>", "ipt>alert(1)</script>\n"].join("");
     const html = renderMarkdown(nestedTag);

@@ -10,9 +10,14 @@ export function renderMarkdown(source) {
         const slug = headingText(tokens).toLowerCase()
           .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
         const base = slug || "section";
-        const count = used.get(base) ?? 0;
+        let count = used.get(base) ?? 0;
+        let id = count === 0 ? base : `${base}-${count + 1}`;
+        while (used.has(id)) {
+          count++;
+          id = `${base}-${count + 1}`;
+        }
         used.set(base, count + 1);
-        const id = count === 0 ? base : `${base}-${count + 1}`;
+        used.set(id, 1);
         return `<h${depth} id="${id}">${inner}</h${depth}>\n`;
       },
     },

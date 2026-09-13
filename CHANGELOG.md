@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Generate unique documentation heading anchors when literal titles collide with automatically numbered duplicates.
+
 - Reject malformed relay path escapes and null signed rotations with HTTP 400 instead of internal server errors.
 
 - Preserve valid unterminated audit and replay JSONL records on reopen so subsequent writes cannot erase history or reopen consumed replay claims.
