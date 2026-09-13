@@ -7,4 +7,5 @@ allowBuilds:
   workerd: true
 
 overrides:
+  sharp: 0.35.4
   tar: 7.5.22

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Patch the Workers test pool’s transitive sharp/libheif vulnerabilities with sharp 0.35.4.
+
+- Refresh Wrangler to 4.131.1, Worker types to 5.20260911.1, and Node types to 26.5.1; test supported Node lines in CI and deploy with the lockfile-pinned Wrangler.
+
 - Refresh relay development and deployment tooling to Wrangler 4.131.0, Cloudflare Worker types 5.20260910.1, marked 18.0.12, and pnpm 12.4.1 while retaining Vitest 4 compatibility with the Workers test pool.
 
 ## 0.1.0 - 2026-09-05

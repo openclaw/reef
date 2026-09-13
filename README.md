@@ -17,6 +17,10 @@ pnpm -r build
 pnpm -r test
 ```
 
+CI tests the declared Node 22 and 24 minimums and the current Node 26 line. Pull
+requests run once per update; pushes run CI on `main`. Deployment uses the
+Wrangler version installed from the lockfile.
+
 The relay entrypoint dispatches to account authentication, device authentication,
 handle, friendship, and mail modules in `workers/relay/src`. Shared HTTP validation
 lives in `http.ts`; D1 lookups and mailbox access live in `registry.ts`. The
