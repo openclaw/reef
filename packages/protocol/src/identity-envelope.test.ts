@@ -48,6 +48,11 @@ describe("identity", () => {
     expect(fingerprint(identity.signing.publicKey)).toMatch(/^(?:[0-9a-f]{4} ){15}[0-9a-f]{4}$/);
   });
 
+  it.each([null, undefined])("fails closed for an absent signed rotation (%s)", (rotation) => {
+    const identity = generateIdentity();
+    expect(verifyRotation(rotation as unknown as Parameters<typeof verifyRotation>[0], identity.signing.publicKey)).toBe(false);
+  });
+
   it("authenticates planned rotation with the old signing key", () => {
     const oldIdentity = generateIdentity();
     const next = generateIdentity();

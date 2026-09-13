@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reject malformed relay path escapes and null signed rotations with HTTP 400 instead of internal server errors.
+
 - Preserve valid unterminated audit and replay JSONL records on reopen so subsequent writes cannot erase history or reopen consumed replay claims.
 
 - Patch the Workers test pool’s transitive sharp/libheif vulnerabilities with sharp 0.35.4.

@@ -325,6 +325,34 @@ describe("relay integration", () => {
     expect((await deviceApi(alice, `/v1/mail/${bob.handle}`, { method: "POST", body: nested })).status).toBe(400);
   });
 
+  it("rejects malformed path escapes without server errors", async () => {
+    const alice = await createUser("path-input", "open");
+    for (const path of ["/v1/handles/%ZZ/rotate", "/v1/mail/%ZZ", "/v1/mail/%ZZ/ack"]) {
+      const response = await deviceApi(alice, path, { method: "POST", body: {} });
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({ error: "invalid_path" });
+    }
+    const response = await deviceApi(alice, "/v1/friends/%ZZ", { method: "DELETE" });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_path" });
+    expect((await SELF.fetch("https://example.test/v1/friends/%ZZ", { method: "DELETE" })).status).toBe(401);
+    const rotation = await SELF.fetch("https://example.test/v1/handles/%ZZ/rotate", { method: "POST" });
+    expect(rotation.status).toBe(400);
+    await expect(rotation.json()).resolves.toEqual({ error: "invalid_path" });
+  });
+
+  it("rejects null signed rotations without changing the registered keys", async () => {
+    const alice = await createUser("rotation-input", "open");
+    const response = await deviceApi(alice, `/v1/handles/${alice.handle}/rotate`, {
+      method: "POST", body: { signedRotation: null },
+    });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_rotation" });
+    const row = await env.DB.prepare("SELECT ed25519_pub, x25519_pub, key_epoch FROM handles WHERE handle = ?")
+      .bind(alice.handle).first();
+    expect(row).toEqual({ ed25519_pub: alice.identity.signing.publicKey, x25519_pub: alice.identity.encryption.publicKey, key_epoch: 1 });
+  });
+
   it("rejects unsigned, badly signed, and replayed device requests", async () => {
     const alice = await createUser("alice", "open");
     expect((await SELF.fetch("https://example.test/v1/friends")).status).toBe(401);

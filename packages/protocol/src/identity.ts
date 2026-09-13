@@ -80,8 +80,8 @@ export function signRotation(statement: RotationStatement, oldSecretKey: string)
 }
 
 export function verifyRotation(rotation: SignedRotation, oldPublicKey: string): boolean {
-  const { signature, ...statement } = rotation;
   try {
+    const { signature, ...statement } = rotation;
     validateRotation(statement);
     return ed25519.verify(fromBase64url(signature), rotationBytes(statement), fromBase64url(oldPublicKey));
   } catch {

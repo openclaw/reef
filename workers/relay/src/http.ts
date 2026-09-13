@@ -13,6 +13,14 @@ export class HttpError extends Error {
   }
 }
 
+export function decodePathParameter(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    throw new HttpError(400, "invalid_path");
+  }
+}
+
 export async function readRequestData(request: Request): Promise<RequestData> {
   const length = Number(request.headers.get("Content-Length") ?? "0");
   if (Number.isFinite(length) && length > LIMITS.requestBodyBytes) throw new HttpError(413, "request_too_large");

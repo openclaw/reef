@@ -2,7 +2,7 @@ import { accountSession, authComplete, authStart, sessionToken } from "./account
 import { deviceIdentity } from "./device-auth.js";
 import { listFriends, mintCode, removeFriend, reportPeer, requestFriend, respondFriend } from "./friends.js";
 import { createHandle, listOwnHandles, rotateHandle } from "./handles.js";
-import { HttpError, json, readRequestData, type RequestData } from "./http.js";
+import { decodePathParameter, HttpError, json, readRequestData, type RequestData } from "./http.js";
 import { LIMITS } from "./limits.js";
 import { acknowledgeMail, connectMailbox, pullMail, sendMail } from "./mail.js";
 import { consumeRate } from "./registry.js";
@@ -45,7 +45,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
 
   const rotationMatch = /^\/v1\/handles\/([^/]+)\/rotate$/.exec(url.pathname);
-  if (request.method === "POST" && rotationMatch) return rotateHandle(decodeURIComponent(rotationMatch[1]!), data, request, sessionToken(request), env);
+  if (request.method === "POST" && rotationMatch) return rotateHandle(decodePathParameter(rotationMatch[1]!), data, request, sessionToken(request), env);
 
   const handler = deviceRoute(request, url, data, env);
   if (!handler) throw new HttpError(404, "not_found");
@@ -63,14 +63,14 @@ function deviceRoute(request: Request, url: URL, data: RequestData, env: Env): D
   if (request.method === "GET" && url.pathname === "/v1/friends") return (device) => listFriends(device, env);
 
   const friendDelete = /^\/v1\/friends\/([^/]+)$/.exec(url.pathname);
-  if (request.method === "DELETE" && friendDelete) return (device) => removeFriend(decodeURIComponent(friendDelete[1]!), device, env);
+  if (request.method === "DELETE" && friendDelete) return (device) => removeFriend(decodePathParameter(friendDelete[1]!), device, env);
 
   if (request.method === "GET" && url.pathname === "/v1/mail/ws") return (device) => connectMailbox(device, request, env);
   if (request.method === "GET" && url.pathname === "/v1/mail") return (device) => pullMail(url, device, env);
   const mailAck = /^\/v1\/mail\/([^/]+)\/ack$/.exec(url.pathname);
-  if (request.method === "POST" && mailAck) return (device) => acknowledgeMail(decodeURIComponent(mailAck[1]!), data.json, device, env);
+  if (request.method === "POST" && mailAck) return (device) => acknowledgeMail(decodePathParameter(mailAck[1]!), data.json, device, env);
   const mail = /^\/v1\/mail\/([^/]+)$/.exec(url.pathname);
-  if (mail && request.method === "POST") return (device) => sendMail(decodeURIComponent(mail[1]!), data.json, device, env);
+  if (mail && request.method === "POST") return (device) => sendMail(decodePathParameter(mail[1]!), data.json, device, env);
   if (request.method === "POST" && url.pathname === "/v1/report") return (device) => reportPeer(data.json, device, env);
   return undefined;
 }
