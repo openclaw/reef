@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.1.1 - 2026-09-13
 
 **Highlights:** Audit and replay JSONL history survives reopen, malformed relay requests get HTTP 400, and the sharp/libheif advisories are patched.
