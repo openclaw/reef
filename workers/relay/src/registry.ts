@@ -1,12 +1,12 @@
 import { HttpError, isHandle, nowSeconds } from "./http.js";
 import type { FriendshipRow, HandleRow } from "./types.js";
 
-export async function requireActiveFriend(peer: string, handle: string, env: Env): Promise<readonly [string, string]> {
+export async function requireActiveFriend(peer: string, handle: string, env: Env): Promise<FriendshipRow> {
   if (!isHandle(peer) || peer === handle) throw new HttpError(404, "not_found");
   const pair = sortedPair(handle, peer);
   const row = await friendshipRow(env.DB, pair);
   if (row?.status !== "active") throw new HttpError(403, "friendship_not_active");
-  return pair;
+  return row;
 }
 
 export async function getHandle(db: D1Database, handle: string): Promise<HandleRow | null> {
@@ -15,8 +15,16 @@ export async function getHandle(db: D1Database, handle: string): Promise<HandleR
 }
 
 export async function friendshipRow(db: D1Database, pair: readonly [string, string]): Promise<FriendshipRow | null> {
-  return db.prepare("SELECT a_handle, b_handle, status, initiated_by, vouch_handle, reapprove_handle, created FROM friendships WHERE a_handle = ? AND b_handle = ?")
+  return db.prepare(`SELECT a_handle, b_handle, a_inbound_allowed, b_inbound_allowed,
+    status, initiated_by, vouch_handle, reapprove_handle, created
+    FROM friendships WHERE a_handle = ? AND b_handle = ?`)
     .bind(pair[0], pair[1]).first<FriendshipRow>();
+}
+
+export function inboundAllowed(friendship: FriendshipRow, handle: string): boolean {
+  return handle === friendship.a_handle
+    ? friendship.a_inbound_allowed === 1
+    : friendship.b_inbound_allowed === 1;
 }
 
 export async function mutualFriend(db: D1Database, a: string, b: string): Promise<string | null> {

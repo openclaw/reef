@@ -1,8 +1,8 @@
 import { randomFriendCode, sha256Hex } from "./crypto.js";
 import { exactObject, HttpError, isHandle, json, nowSeconds, publicKeyField, stringField } from "./http.js";
 import { LIMITS } from "./limits.js";
-import { consumeRate, friendshipRow, getHandle, mutualFriend, purgeFriendshipMailboxes, sortedPair } from "./registry.js";
-import type { DeviceIdentity } from "./types.js";
+import { consumeRate, friendshipRow, getHandle, inboundAllowed, mutualFriend, purgeFriendshipMailboxes, requireActiveFriend, sortedPair } from "./registry.js";
+import type { DeviceIdentity, FriendshipRow } from "./types.js";
 
 export async function mintCode(device: DeviceIdentity, env: Env): Promise<Response> {
   const code = randomFriendCode();
@@ -105,15 +105,31 @@ export async function respondFriend(value: unknown, device: DeviceIdentity, env:
 }
 
 export async function listFriends(device: DeviceIdentity, env: Env): Promise<Response> {
-  const rows = await env.DB.prepare(`SELECT f.status, f.initiated_by, f.vouch_handle,
+  const rows = await env.DB.prepare(`SELECT f.a_handle, f.b_handle, f.a_inbound_allowed, f.b_inbound_allowed,
+    f.status, f.initiated_by, f.vouch_handle,
     h.handle, h.ed25519_pub, h.x25519_pub, h.key_epoch
     FROM friendships f JOIN handles h ON h.handle = CASE WHEN f.a_handle = ? THEN f.b_handle ELSE f.a_handle END
     WHERE f.a_handle = ? OR f.b_handle = ? ORDER BY h.handle`)
-    .bind(device.handle, device.handle, device.handle).all<{ status: string; initiated_by: string; vouch_handle: string | null; handle: string; ed25519_pub: string; x25519_pub: string; key_epoch: number }>();
+    .bind(device.handle, device.handle, device.handle).all<FriendshipRow & { handle: string; ed25519_pub: string; x25519_pub: string; key_epoch: number }>();
   return json({ friendships: rows.results.map((row) => ({
     peer: row.handle, status: row.status, initiated_by: row.initiated_by, vouching_mutual: row.vouch_handle,
     ed25519_pub: row.ed25519_pub, x25519_pub: row.x25519_pub, key_epoch: row.key_epoch,
+    inbound_allowed: inboundAllowed(row, device.handle),
+    outbound_allowed: inboundAllowed(row, row.handle),
   })) });
+}
+
+export async function setInboundAllowed(peer: string, value: unknown, device: DeviceIdentity, env: Env): Promise<Response> {
+  const body = exactObject(value, ["inbound_allowed"]);
+  if (!isHandle(peer)) throw new HttpError(404, "not_found");
+  if (typeof body.inbound_allowed !== "boolean") throw new HttpError(400, "invalid_request");
+  const friendship = await requireActiveFriend(peer, device.handle, env);
+  const column = device.handle === friendship.a_handle ? "a_inbound_allowed" : "b_inbound_allowed";
+  const updated = await env.DB.prepare(`UPDATE friendships SET ${column} = ?
+    WHERE a_handle = ? AND b_handle = ? AND status = 'active'`)
+    .bind(body.inbound_allowed ? 1 : 0, friendship.a_handle, friendship.b_handle).run();
+  if ((updated.meta.changes ?? 0) !== 1) throw new HttpError(409, "friendship_changed");
+  return json({ peer, inbound_allowed: body.inbound_allowed });
 }
 
 export async function removeFriend(peer: string, device: DeviceIdentity, env: Env): Promise<Response> {

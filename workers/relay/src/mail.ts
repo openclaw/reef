@@ -2,11 +2,12 @@ import { formatHandleEpoch, verifyReceipt, type Envelope, type SignedReceipt } f
 import { canonicalSize, verifyEnvelopeForRelay } from "./crypto.js";
 import { exactObject, HttpError, json, nowSeconds, stringField } from "./http.js";
 import { LIMITS } from "./limits.js";
-import { consumeRate, getHandle, mailbox, requireActiveFriend } from "./registry.js";
+import { consumeRate, getHandle, inboundAllowed, mailbox, requireActiveFriend } from "./registry.js";
 import type { DeviceIdentity } from "./types.js";
 
 export async function sendMail(peer: string, value: unknown, device: DeviceIdentity, env: Env): Promise<Response> {
-  const pair = await requireActiveFriend(peer, device.handle, env);
+  const friendship = await requireActiveFriend(peer, device.handle, env);
+  if (!inboundAllowed(friendship, peer)) throw new HttpError(403, "friendship_direction_disabled");
   if (value === null || value === undefined || typeof value !== "object") throw new HttpError(400, "invalid_envelope");
   let size: number;
   try {
@@ -20,7 +21,7 @@ export async function sendMail(peer: string, value: unknown, device: DeviceIdent
   const peerRow = await getHandle(env.DB, peer);
   if (!peerRow || envelope.to !== formatHandleEpoch(peer, peerRow.key_epoch)) throw new HttpError(400, "invalid_envelope_peers");
   if (!await verifyEnvelopeForRelay(value, device.row.ed25519_pub)) throw new HttpError(400, "invalid_envelope");
-  const rateKey = pair.join("|");
+  const rateKey = `${friendship.a_handle}|${friendship.b_handle}`;
   await consumeRate(env.DB, `mail-hour:${rateKey}`, 3600, LIMITS.mailPerPairHour);
   await consumeRate(env.DB, `mail-minute:${rateKey}`, 60, LIMITS.mailBurstPerMinute);
   const result = await mailbox(env, peer).enqueue(device.handle, envelope.id, "message", JSON.stringify(envelope), nowSeconds());

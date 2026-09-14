@@ -26,6 +26,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r build
       - run: pnpm -r test
+      - name: Apply D1 migrations with the installed Wrangler version
+        run: pnpm --filter @openclaw/reef-relay exec wrangler d1 migrations apply reef-relay --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 91b59577e757131d68d55a471fe32aca
       - name: Deploy the installed Wrangler version
         run: pnpm --filter @openclaw/reef-relay exec wrangler deploy
         env:

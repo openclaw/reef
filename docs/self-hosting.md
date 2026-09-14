@@ -21,6 +21,8 @@ pnpm --filter @openclaw/reef-relay exec wrangler d1 migrations apply reef-relay 
 pnpm --filter @openclaw/reef-relay exec wrangler deploy
 ```
 
+Apply all D1 migrations before deploying an updated Worker. The directional-permission migration preserves allow/allow defaults for existing friendships; deploy the migrated relay before clients use `PATCH /v1/friends/:peer`. The hosted deployment workflow performs migrations before the Worker upload.
+
 Point every participating Reef plugin at the deployed Worker URL.
 
 ## Troubleshooting protocol versions

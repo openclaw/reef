@@ -1,9 +1,22 @@
 import { SELF, env, listDurableObjectIds } from "cloudflare:test";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateIdentity, seal, signRotation } from "@openclaw/reef-protocol";
 import { randomFriendCode } from "../src/crypto.js";
 import worker from "../src/index.js";
 import { api, becomeFriends, bodyOf, createUser, deviceApi, friendshipResponseBody, makeDeviceRequest, mintCode, nextId, receiptFor } from "./helpers.js";
+
+describe("relay migrations", () => {
+  it("defaults both directions for a friendship created under the initial schema", async () => {
+    const migratedFriendship = await env.DB.prepare(`SELECT a_inbound_allowed, b_inbound_allowed
+      FROM friendships WHERE a_handle = ? AND b_handle = ?`)
+      .bind("migration-alpha", "migration-zulu")
+      .first<{ a_inbound_allowed: number; b_inbound_allowed: number }>();
+    expect(migratedFriendship).toEqual({ a_inbound_allowed: 1, b_inbound_allowed: 1 });
+    await env.DB.prepare("DELETE FROM friendships WHERE a_handle = ? AND b_handle = ?")
+      .bind("migration-alpha", "migration-zulu")
+      .run();
+  });
+});
 
 describe("friend code generation", () => {
   it("uses the Crockford alphabet for every random index", () => {
@@ -13,6 +26,10 @@ describe("friend code generation", () => {
 });
 
 describe("relay integration", () => {
+  beforeEach(async () => {
+    await env.DB.prepare("DELETE FROM rate_limits").run();
+  });
+
   it("serves the site outside the API namespace", async () => {
     const response = await SELF.fetch("https://example.test/");
     expect(response.status).toBe(200);
@@ -105,6 +122,187 @@ describe("relay integration", () => {
     socket!.close();
   });
 
+  it("enforces receiver-owned directions for both sorted-pair orientations", async () => {
+    const higher = await createUser("zulu", "open");
+    const lower = await createUser("alpha", "open");
+    await becomeFriends(higher, lower);
+
+    const lowerDefaults = await bodyOf<{ friendships: Array<{ peer: string; inbound_allowed: boolean; outbound_allowed: boolean }> }>(
+      await deviceApi(lower, "/v1/friends"),
+    );
+    const higherDefaults = await bodyOf<{ friendships: Array<{ peer: string; inbound_allowed: boolean; outbound_allowed: boolean }> }>(
+      await deviceApi(higher, "/v1/friends"),
+    );
+    expect(lowerDefaults.friendships).toContainEqual(expect.objectContaining({
+      peer: higher.handle,
+      inbound_allowed: true,
+      outbound_allowed: true,
+    }));
+    expect(higherDefaults.friendships).toContainEqual(expect.objectContaining({
+      peer: lower.handle,
+      inbound_allowed: true,
+      outbound_allowed: true,
+    }));
+
+    for (const body of [
+      undefined,
+      null,
+      [],
+      {},
+      { inbound_allowed: 0 },
+      { inbound_allowed: "false" },
+      { inbound_allowed: false, extra: true },
+    ]) {
+      const invalid = await deviceApi(lower, `/v1/friends/${higher.handle}`, { method: "PATCH", body });
+      expect(invalid.status).toBe(400);
+      await expect(invalid.json()).resolves.toEqual({ error: "invalid_request" });
+    }
+
+    const disableLower = await deviceApi(lower, `/v1/friends/${higher.handle}`, {
+      method: "PATCH",
+      body: { inbound_allowed: false },
+    });
+    expect(disableLower.status).toBe(200);
+    await expect(disableLower.json()).resolves.toEqual({ peer: higher.handle, inbound_allowed: false });
+    const lowerSide = await env.DB.prepare(`SELECT a_handle, b_handle, a_inbound_allowed, b_inbound_allowed
+      FROM friendships WHERE a_handle = ? AND b_handle = ?`).bind(lower.handle, higher.handle)
+      .first<{ a_handle: string; b_handle: string; a_inbound_allowed: number; b_inbound_allowed: number }>();
+    expect(lowerSide).toMatchObject({
+      a_handle: lower.handle,
+      b_handle: higher.handle,
+      a_inbound_allowed: 0,
+      b_inbound_allowed: 1,
+    });
+
+    const lowerView = await bodyOf<{ friendships: Array<{ peer: string; inbound_allowed: boolean; outbound_allowed: boolean }> }>(
+      await deviceApi(lower, "/v1/friends"),
+    );
+    const higherView = await bodyOf<{ friendships: Array<{ peer: string; inbound_allowed: boolean; outbound_allowed: boolean }> }>(
+      await deviceApi(higher, "/v1/friends"),
+    );
+    expect(lowerView.friendships).toContainEqual(expect.objectContaining({
+      peer: higher.handle,
+      inbound_allowed: false,
+      outbound_allowed: true,
+    }));
+    expect(higherView.friendships).toContainEqual(expect.objectContaining({
+      peer: lower.handle,
+      inbound_allowed: true,
+      outbound_allowed: false,
+    }));
+
+    const toLower = seal({
+      id: nextId(), from: `${higher.handle}#1`, to: `${lower.handle}#1`, body: { text: "disabled direction" },
+      senderSigningSecretKey: higher.identity.signing.secretKey,
+      recipientEncryptionPublicKey: lower.identity.encryption.publicKey,
+    });
+    const denied = await deviceApi(higher, `/v1/mail/${lower.handle}`, { method: "POST", body: toLower });
+    expect(denied.status).toBe(403);
+    await expect(denied.json()).resolves.toEqual({ error: "friendship_direction_disabled" });
+
+    const toHigher = seal({
+      id: nextId(), from: `${lower.handle}#1`, to: `${higher.handle}#1`, body: { text: "opposite direction" },
+      senderSigningSecretKey: lower.identity.signing.secretKey,
+      recipientEncryptionPublicKey: higher.identity.encryption.publicKey,
+    });
+    expect((await deviceApi(lower, `/v1/mail/${higher.handle}`, { method: "POST", body: toHigher })).status).toBe(202);
+
+    expect((await deviceApi(lower, `/v1/friends/${higher.handle}`, {
+      method: "PATCH",
+      body: { inbound_allowed: true },
+    })).status).toBe(200);
+    const restored = seal({
+      id: nextId(), from: `${higher.handle}#1`, to: `${lower.handle}#1`, body: { text: "restored direction" },
+      senderSigningSecretKey: higher.identity.signing.secretKey,
+      recipientEncryptionPublicKey: lower.identity.encryption.publicKey,
+    });
+    expect((await deviceApi(higher, `/v1/mail/${lower.handle}`, { method: "POST", body: restored })).status).toBe(202);
+
+    const patch = await makeDeviceRequest(higher, `/v1/friends/${lower.handle}`, {
+      method: "PATCH",
+      body: { inbound_allowed: false },
+    });
+    const replay = patch.clone();
+    const replayBody = await replay.text();
+    expect((await SELF.fetch(patch)).status).toBe(200);
+    expect((await SELF.fetch(replay.url, {
+      method: replay.method,
+      headers: replay.headers,
+      body: replayBody,
+    })).status).toBe(409);
+    const higherSide = await env.DB.prepare(`SELECT a_handle, b_handle, a_inbound_allowed, b_inbound_allowed
+      FROM friendships WHERE a_handle = ? AND b_handle = ?`).bind(lower.handle, higher.handle)
+      .first<{ a_handle: string; b_handle: string; a_inbound_allowed: number; b_inbound_allowed: number }>();
+    expect(higherSide).toMatchObject({ a_inbound_allowed: 1, b_inbound_allowed: 0 });
+
+    const nowToHigher = seal({
+      id: nextId(), from: `${lower.handle}#1`, to: `${higher.handle}#1`, body: { text: "other disabled direction" },
+      senderSigningSecretKey: lower.identity.signing.secretKey,
+      recipientEncryptionPublicKey: higher.identity.encryption.publicKey,
+    });
+    expect((await deviceApi(lower, `/v1/mail/${higher.handle}`, { method: "POST", body: nowToHigher })).status).toBe(403);
+  });
+
+  it("authenticates permission updates and cannot alter inactive friendships", async () => {
+    const alice = await createUser("permissions-alice", "open");
+    const bob = await createUser("permissions-bob", "open");
+    const path = `/v1/friends/${bob.handle}`;
+    const body = { inbound_allowed: false };
+    expect((await api(path, { method: "PATCH", body, session: alice.session })).status).toBe(401);
+    expect((await deviceApi(alice, path, { method: "PATCH", body, identity: bob.identity })).status).toBe(401);
+    expect((await deviceApi(alice, path, { method: "PATCH", body })).status).toBe(403);
+    await deviceApi(alice, "/v1/friends/request", { method: "POST", body: { to: bob.handle } });
+    expect((await deviceApi(alice, path, { method: "PATCH", body })).status).toBe(403);
+    await deviceApi(bob, "/v1/friends/respond", { method: "POST", body: friendshipResponseBody(alice, true) });
+    const signed = await makeDeviceRequest(alice, path, { method: "PATCH", body });
+    const tampered = new Request(signed.url, {
+      method: signed.method, headers: signed.headers, body: JSON.stringify({ inbound_allowed: true }),
+    });
+    expect((await SELF.fetch(tampered)).status).toBe(401);
+    expect((await SELF.fetch(signed)).status).toBe(200);
+    expect((await deviceApi(alice, path, { method: "DELETE" })).status).toBe(204);
+    const blocked = await deviceApi(alice, path, { method: "PATCH", body: { inbound_allowed: true } });
+    expect(blocked.status).toBe(403);
+    await expect(blocked.json()).resolves.toEqual({ error: "friendship_not_active" });
+  });
+
+  it("keeps accepted messages deliverable and receipts routable after inbound is disabled", async () => {
+    const alice = await createUser("queued-alice", "open");
+    const bob = await createUser("queued-bob", "open");
+    await becomeFriends(alice, bob);
+
+    const id = nextId();
+    const queued = seal({
+      id, from: `${alice.handle}#1`, to: `${bob.handle}#1`, body: { text: "already accepted" },
+      senderSigningSecretKey: alice.identity.signing.secretKey,
+      recipientEncryptionPublicKey: bob.identity.encryption.publicKey,
+    });
+    expect((await deviceApi(alice, `/v1/mail/${bob.handle}`, { method: "POST", body: queued })).status).toBe(202);
+    expect((await deviceApi(bob, `/v1/friends/${alice.handle}`, {
+      method: "PATCH",
+      body: { inbound_allowed: false },
+    })).status).toBe(200);
+
+    const inbox = await bodyOf<{ entries: Array<{ peer: string; id: string; kind: string }> }>(
+      await deviceApi(bob, "/v1/mail?after=0"),
+    );
+    expect(inbox.entries).toMatchObject([{ peer: alice.handle, id, kind: "message" }]);
+    const receipt = receiptFor(bob, id);
+    const ack = await deviceApi(bob, `/v1/mail/${alice.handle}/ack`, { method: "POST", body: { id, receipt } });
+    expect(ack.status).toBe(200);
+    const senderInbox = await bodyOf<{ entries: Array<{ peer: string; id: string; kind: string }> }>(
+      await deviceApi(alice, "/v1/mail?after=0"),
+    );
+    expect(senderInbox.entries).toMatchObject([{ peer: bob.handle, id, kind: "receipt" }]);
+
+    const newEnvelope = seal({
+      id: nextId(), from: `${alice.handle}#1`, to: `${bob.handle}#1`, body: { text: "newly denied" },
+      senderSigningSecretKey: alice.identity.signing.secretKey,
+      recipientEncryptionPublicKey: bob.identity.encryption.publicKey,
+    });
+    expect((await deviceApi(alice, `/v1/mail/${bob.handle}`, { method: "POST", body: newEnvelope })).status).toBe(403);
+  });
+
   it("uses one recipient inbox and socket for messages from distinct peers", async () => {
     const alice = await createUser("alice", "open");
     const bob = await createUser("bob", "open");
@@ -187,6 +385,12 @@ describe("relay integration", () => {
       method: "POST",
       body: { to: bob.handle },
     })).status).toBe(202);
+    const inactiveDirection = await deviceApi(bob, `/v1/friends/${alice.handle}`, {
+      method: "PATCH",
+      body: { inbound_allowed: false },
+    });
+    expect(inactiveDirection.status).toBe(403);
+    await expect(inactiveDirection.json()).resolves.toEqual({ error: "friendship_not_active" });
 
     for (const accept of [true, false]) {
       const response = await deviceApi(bob, "/v1/friends/respond", {
@@ -289,18 +493,27 @@ describe("relay integration", () => {
     const alice = await createUser("alice", "open");
     const bob = await createUser("bob", "open");
     await becomeFriends(alice, bob);
-    for (let index = 0; index < 20; index++) {
-      const envelope = seal({
-        id: nextId(), from: `${alice.handle}#1`, to: `${bob.handle}#1`, body: { text: `mail ${index}` },
+    // Keep every request in one rate window, including when the wall clock crosses a minute.
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now());
+    const send = async (body: unknown) => worker.fetch(
+      await makeDeviceRequest(alice, `/v1/mail/${bob.handle}`, { method: "POST", body }), env,
+    );
+    try {
+      for (let index = 0; index < 20; index++) {
+        const envelope = seal({
+          id: nextId(), from: `${alice.handle}#1`, to: `${bob.handle}#1`, body: { text: `mail ${index}` },
+          senderSigningSecretKey: alice.identity.signing.secretKey, recipientEncryptionPublicKey: bob.identity.encryption.publicKey,
+        });
+        expect((await send(envelope)).status).toBe(202);
+      }
+      const overflow = seal({
+        id: nextId(), from: `${alice.handle}#1`, to: `${bob.handle}#1`, body: { text: "overflow" },
         senderSigningSecretKey: alice.identity.signing.secretKey, recipientEncryptionPublicKey: bob.identity.encryption.publicKey,
       });
-      expect((await deviceApi(alice, `/v1/mail/${bob.handle}`, { method: "POST", body: envelope })).status).toBe(202);
+      expect((await send(overflow)).status).toBe(429);
+    } finally {
+      clock.mockRestore();
     }
-    const overflow = seal({
-      id: nextId(), from: `${alice.handle}#1`, to: `${bob.handle}#1`, body: { text: "overflow" },
-      senderSigningSecretKey: alice.identity.signing.secretKey, recipientEncryptionPublicKey: bob.identity.encryption.publicKey,
-    });
-    expect((await deviceApi(alice, `/v1/mail/${bob.handle}`, { method: "POST", body: overflow })).status).toBe(429);
   });
 
   it("rejects oversized envelopes before crypto verification", async () => {
@@ -336,6 +549,10 @@ describe("relay integration", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "invalid_path" });
     expect((await SELF.fetch("https://example.test/v1/friends/%ZZ", { method: "DELETE" })).status).toBe(401);
+    const patch = await deviceApi(alice, "/v1/friends/%ZZ", { method: "PATCH", body: { inbound_allowed: false } });
+    expect(patch.status).toBe(400);
+    await expect(patch.json()).resolves.toEqual({ error: "invalid_path" });
+
     const rotation = await SELF.fetch("https://example.test/v1/handles/%ZZ/rotate", { method: "POST" });
     expect(rotation.status).toBe(400);
     await expect(rotation.json()).resolves.toEqual({ error: "invalid_path" });

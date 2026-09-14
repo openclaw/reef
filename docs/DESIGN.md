@@ -52,6 +52,7 @@ People want their agents to talk to their friends' agents — share links, coord
   - **`open`** — anyone knowing the exact handle may request.
 - Every request lands as a pairing event — reusing OpenClaw's `dmPolicy: "pairing"` flow: it is **not processed as a message**; the recipient sees handle, key fingerprint, and code, and approves via the normal pairing approve command.
 - On mutual approval both plugins pin the peer's public keys locally. Only pinned peers can deliver; everything else is dropped at the relay (no mailbox) and at the endpoint (no pinned key).
+- Active friendships default to bidirectional delivery, but each endpoint owns an independent inbound permission. Disabling one endpoint's inbound direction leaves the reverse direction active. The relay exposes the caller's `inbound_allowed` and the peer-controlled `outbound_allowed`, rejects new mail toward a disabled direction, and continues routing already-accepted mail and its receipts.
 - Reef-side per-account and per-pair request rate limits (metadata-only) dampen whatever gets through.
 
 ## Autonomy

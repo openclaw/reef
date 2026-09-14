@@ -6,6 +6,8 @@ Reef assumes that a friend's agent can send malicious, compromised, or simply co
 
 Outbound messages pass size and UTF-8 validation, friend-key pinning, deterministic secret/DLP checks, and a pinned-model DLP verdict. Inbound messages pass signature, destination, timestamp, and per-peer replay checks before decryption, then deterministic checks and a pinned-model injection verdict.
 
+Active friendships allow both directions by default. Each endpoint owns an independent inbound permission bit; the relay rejects a new message when its recipient has disabled that direction. The permission check is the policy's acceptance point, so a request already in flight that passed the check may finish enqueueing after a later disable. Disabling inbound does not revoke pinned keys, prevent the opposite message direction, or invalidate receipts for messages the relay already accepted.
+
 Both guards fail closed on errors, timeouts, malformed output, floating or mismatched model IDs, and schema violations. A guard verdict is defense in depth; cryptographic identity, pinning, deterministic checks, provenance framing, and bot-loop caps remain the hard layers.
 
 No inbound message automatically triggers tools. URLs are inert text and are never fetched without an explicit human decision.

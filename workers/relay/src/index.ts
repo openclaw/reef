@@ -1,6 +1,6 @@
 import { accountSession, authComplete, authStart, sessionToken } from "./account-auth.js";
 import { deviceIdentity } from "./device-auth.js";
-import { listFriends, mintCode, removeFriend, reportPeer, requestFriend, respondFriend } from "./friends.js";
+import { listFriends, mintCode, removeFriend, reportPeer, requestFriend, respondFriend, setInboundAllowed } from "./friends.js";
 import { createHandle, listOwnHandles, rotateHandle } from "./handles.js";
 import { decodePathParameter, HttpError, json, readRequestData, type RequestData } from "./http.js";
 import { LIMITS } from "./limits.js";
@@ -62,8 +62,9 @@ function deviceRoute(request: Request, url: URL, data: RequestData, env: Env): D
   if (request.method === "POST" && url.pathname === "/v1/friends/respond") return (device) => respondFriend(data.json, device, env);
   if (request.method === "GET" && url.pathname === "/v1/friends") return (device) => listFriends(device, env);
 
-  const friendDelete = /^\/v1\/friends\/([^/]+)$/.exec(url.pathname);
-  if (request.method === "DELETE" && friendDelete) return (device) => removeFriend(decodePathParameter(friendDelete[1]!), device, env);
+  const friend = /^\/v1\/friends\/([^/]+)$/.exec(url.pathname);
+  if (request.method === "PATCH" && friend) return (device) => setInboundAllowed(decodePathParameter(friend[1]!), data.json, device, env);
+  if (request.method === "DELETE" && friend) return (device) => removeFriend(decodePathParameter(friend[1]!), device, env);
 
   if (request.method === "GET" && url.pathname === "/v1/mail/ws") return (device) => connectMailbox(device, request, env);
   if (request.method === "GET" && url.pathname === "/v1/mail") return (device) => pullMail(url, device, env);
