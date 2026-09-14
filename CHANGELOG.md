@@ -1,13 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 - 2026-09-13
 
-- Refresh locked test tooling to Vite 8.3.0 and Rolldown 1.2.8, with current compatible transitive dependencies.
+**Highlights:** Audit and replay JSONL history survives reopen, malformed relay requests get HTTP 400, and the sharp/libheif advisories are patched.
+
 - Preserve valid unterminated audit and replay JSONL records on reopen so subsequent writes cannot erase history or reopen consumed replay claims.
-- Make opt-in live guard smoke tests fail on missing configuration and unsuccessful provider verdicts.
-- Generate unique documentation heading anchors when literal titles collide with automatically numbered duplicates.
 - Reject malformed relay path escapes and null signed rotations with HTTP 400 instead of internal server errors.
 - Patch the Workers test pool’s transitive sharp/libheif vulnerabilities with sharp 0.35.4.
+- Make opt-in live guard smoke tests fail on missing configuration and unsuccessful provider verdicts.
+- Generate unique documentation heading anchors when literal titles collide with automatically numbered duplicates.
+- Refresh locked test tooling to Vite 8.3.0 and Rolldown 1.2.8, with current compatible transitive dependencies.
 - Refresh Wrangler to 4.131.1, Worker types to 5.20260911.1, Node types to 26.5.1, marked to 18.0.12, and pnpm to 12.4.1; test supported Node lines in CI and deploy with the lockfile-pinned Wrangler while retaining Vitest 4 compatibility.
 
 ## 0.1.0 - 2026-09-05
