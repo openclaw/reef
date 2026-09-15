@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Snapshot protocol messages across asynchronous checks so caller mutations cannot replace guarded plaintext, verified ciphertext, recipients, or replay identifiers.
 - Add receiver-owned directional friendship permissions with signed updates, bidirectional migration defaults, and preserved queued delivery and receipts; thanks @jason-allen-oneal (#12).
 
 ## 0.1.1 - 2026-09-13

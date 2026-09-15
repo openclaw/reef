@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { canonicalBytes } from "./canonical.js";
 import { base64, base64url, fromBase64url, utf8 } from "./encoding.js";
 import { fingerprint, formatHandleEpoch, generateIdentity, parseHandleEpoch, signRotation, verifyRotation } from "./identity.js";
-import { BadSignatureError, MalformedError, open, ProtocolError, seal, TooLargeError, type Envelope } from "./envelope.js";
+import { BadSignatureError, MalformedError, open, openClaimed, ProtocolError, seal, TooLargeError, type Envelope } from "./envelope.js";
 import { MemoryReplayStore } from "./replay.js";
 
 const now = 1_752_300_000;
@@ -67,6 +67,39 @@ describe("identity", () => {
 });
 
 describe("envelope", () => {
+  it.each([
+    { name: "open", openEnvelope: open },
+    { name: "openClaimed", openEnvelope: openClaimed },
+  ])("$name decrypts the verified snapshot after an asynchronous replay claim", async ({ name, openEnvelope }) => {
+    const { alice, bob, envelope } = fixture();
+    const claimed = Promise.withResolvers<void>();
+    const resume = Promise.withResolvers<void>();
+    class PausingReplayStore extends MemoryReplayStore {
+      override async claim(peer: string, messageId: string, hash: string) {
+        const result = await super.claim(peer, messageId, hash);
+        claimed.resolve();
+        await resume.promise;
+        return result;
+      }
+    }
+    const replayStore = new PausingReplayStore();
+    const pending = openEnvelope({
+      envelope, self: "bob#1", recipientEncryptionSecretKey: bob.encryption.secretKey,
+      senderSigningPublicKey: alice.signing.publicKey, replayStore, now,
+    });
+    await claimed.promise;
+    Object.assign(envelope, seal({
+      id: replyTo, from: "alice#1", to: "bob#1", body: { text: "unverified replacement" },
+      senderSigningSecretKey: alice.signing.secretKey, recipientEncryptionPublicKey: bob.encryption.publicKey, ts: now,
+    }));
+    resume.resolve();
+    const body = { text: "hello", replyTo, thread };
+    await expect(pending).resolves.toMatchObject(name === "open" ? body : { claim: "new", body });
+    if (name === "open") {
+      await expect(replayStore.claim("alice", id, "different hash")).resolves.toBe("mismatch");
+    }
+  });
+
   it("seals and opens a text body", async () => {
     const { alice, bob, envelope } = fixture();
     await expect(openFixture(envelope, alice, bob)).resolves.toEqual({ text: "hello", replyTo, thread });

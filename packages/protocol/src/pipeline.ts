@@ -64,6 +64,8 @@ export interface OutboundResult {
 }
 
 export async function composeOutbound(options: ComposeOutboundOptions): Promise<OutboundResult> {
+  // Keep the proposal, guard decision, and sealed message bound across awaits.
+  options = { ...options, body: structuredClone(options.body) };
   validateEnvelopeMetadata(options.id, options.from, options.to, options.ts ?? Math.floor(Date.now() / 1000));
   validateMessageBody(options.body);
   if (fromBase64url(options.senderSigningSecretKey).length !== 32 || fromBase64url(options.recipientEncryptionPublicKey).length !== 32) {
@@ -105,6 +107,7 @@ export type InboundResult =
 // Caller MUST ack the relay with receipt. For accepted or duplicate-accepted results, it MUST
 // idempotently deliver every present body to channel ingress, keyed by envelope id.
 export async function composeInbound(options: ComposeInboundOptions): Promise<InboundResult> {
+  options = { ...options, envelope: structuredClone(options.envelope) };
   const opened = await openClaimed(options);
   if (opened.claim === "duplicate") {
     if (opened.receipt === undefined) throw new ReplayedError("duplicate envelope");

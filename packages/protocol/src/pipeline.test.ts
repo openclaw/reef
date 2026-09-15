@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { MemoryAuditStore, type AuditEntry, type AuditStore } from "./audit.js";
 import { canonicalBytes } from "./canonical.js";
 import { base64, fromBase64url, utf8 } from "./encoding.js";
-import { seal, type Envelope } from "./envelope.js";
+import { open, seal, type Envelope } from "./envelope.js";
 import type { GuardAdapter, Verdict } from "./guard.js";
 import { generateIdentity } from "./identity.js";
 import { composeInbound, composeOutbound, PipelineError } from "./pipeline.js";
@@ -60,6 +60,60 @@ class FailOnceAuditStore implements AuditStore {
 }
 
 describe("pipeline", () => {
+  it("seals the original proposal when the caller mutates it during classification", async () => {
+    const { alice, bob } = identities();
+    const carol = generateIdentity();
+    const classified = Promise.withResolvers<string>();
+    const verdict = Promise.withResolvers<Verdict>();
+    const options = {
+      id: "01JZ0000000000000000000000", from: "alice#1", to: "bob#1", body: { text: "checked message" },
+      senderSigningSecretKey: alice.signing.secretKey, recipientEncryptionPublicKey: bob.encryption.publicKey,
+      ts: now, audit: audit(), policyVersion: "v1",
+      guard: {
+        providerId: "mock", pinnedModel: allow.model,
+        classify(request: { text: string }) { classified.resolve(request.text); return verdict.promise; },
+      },
+    };
+    const pending = composeOutbound(options);
+    expect(await classified.promise).toBe("checked message");
+    options.body.text = "replacement never checked by the guard";
+    options.to = "carol#1";
+    options.recipientEncryptionPublicKey = carol.encryption.publicKey;
+    verdict.resolve(allow);
+    const { envelope } = await pending;
+    expect(envelope.to).toBe("bob#1");
+    await expect(open({
+      envelope, self: "bob#1", recipientEncryptionSecretKey: bob.encryption.secretKey,
+      senderSigningPublicKey: alice.signing.publicKey, replayStore: new MemoryReplayStore(), now,
+    })).resolves.toEqual({ text: "checked message" });
+  });
+
+  it("completes the verified inbound id when the caller mutates the envelope during classification", async () => {
+    const { alice, bob } = identities();
+    const envelope = seal({
+      id: "01JZ0000000000000000000000", from: "alice#1", to: "bob#1", body: { text: "hello" },
+      senderSigningSecretKey: alice.signing.secretKey, recipientEncryptionPublicKey: bob.encryption.publicKey, ts: now,
+    });
+    const original = { ...envelope };
+    const classified = Promise.withResolvers<void>();
+    const verdict = Promise.withResolvers<Verdict>();
+    const replayStore = new MemoryReplayStore();
+    const pending = composeInbound({
+      envelope, self: "bob#1", recipientEncryptionSecretKey: bob.encryption.secretKey,
+      recipientSigningSecretKey: bob.signing.secretKey, senderSigningPublicKey: alice.signing.publicKey,
+      replayStore, now, audit: audit(), policyVersion: "v1",
+      guard: {
+        providerId: "mock", pinnedModel: allow.model,
+        classify() { classified.resolve(); return verdict.promise; },
+      },
+    });
+    await classified.promise;
+    envelope.id = "01JZ0000000000000000000001";
+    verdict.resolve(allow);
+    await expect(pending).resolves.toMatchObject({ disposition: "accepted", receipt: { id: original.id } });
+    expect(await replayStore.completed("alice", original.id)).toMatchObject({ body: { text: "hello" } });
+  });
+
   it("runs an allowed outbound and inbound exchange end to end", async () => {
     const { alice, bob } = identities();
     const outboundAudit = audit();
