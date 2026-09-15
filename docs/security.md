@@ -35,4 +35,6 @@ discarding an incomplete final record. A complete final record without its newli
 is preserved and durably separated before further writes. Corrupt middle records
 remain errors.
 
+Reopening an audit log verifies and retains its full chain, including histories larger than the JavaScript function argument limit; subsequent appends continue from the verified head.
+
 Read the full [design](DESIGN.md) for envelope fields, review semantics, and key recovery.
