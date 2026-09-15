@@ -103,6 +103,7 @@ export function seal(options: SealOptions): Envelope {
 }
 
 export async function open(options: OpenOptions): Promise<MessageBody> {
+  options = { ...options, envelope: structuredClone(options.envelope) };
   const result = await openClaimed(options);
   if (result.claim === "duplicate") throw new ReplayedError("duplicate envelope");
   const peer = parseHandleEpoch(options.envelope.from).handle;
@@ -116,6 +117,8 @@ export async function open(options: OpenOptions): Promise<MessageBody> {
 }
 
 export async function openClaimed(options: OpenOptions): Promise<ClaimedOpenResult> {
+  // Replay stores may yield; decrypt exactly the envelope whose signature we verify.
+  options = { ...options, envelope: structuredClone(options.envelope) };
   const envelope = validateEnvelope(options.envelope);
   if (!options.senderSigningPublicKey) throw new NotPinnedError();
   const { sig, ...unsigned } = envelope;
