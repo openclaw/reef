@@ -80,6 +80,45 @@ describe("relay integration", () => {
     expect(message.text).toMatch(/https:\/\/reefwire\.ai\/welcome#token=[A-Za-z0-9_-]+/);
   });
 
+  it("shares one account across concurrent signup requests for the same email", async () => {
+    const email = `concurrent-${crypto.randomUUID()}@example.test`;
+    const responses = await Promise.all(Array.from({ length: 5 }, () => worker.fetch(new Request("https://example.test/v1/auth/start", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }),
+    }), env)));
+    expect(responses.map((response) => response.status)).toEqual([200, 200, 200, 200, 200]);
+    const accounts = await env.DB.prepare("SELECT id FROM accounts WHERE email = ?").bind(email).all<{ id: string }>();
+    expect(accounts.results).toHaveLength(1);
+    const sessions: string[] = [];
+    for (const response of responses) {
+      const { magicLink } = await bodyOf<{ magicLink: string }>(response);
+      const token = new URLSearchParams(new URL(magicLink).hash.slice(1)).get("token");
+      const complete = await api("/v1/auth/complete", { method: "POST", body: { token } });
+      expect(complete.status).toBe(200);
+      sessions.push((await bodyOf<{ session: string }>(complete)).session);
+    }
+    expect(new Set(sessions).size).toBe(5);
+    const linked = await env.DB.prepare("SELECT COUNT(*) AS count FROM sessions WHERE account_id = ?")
+      .bind(accounts.results[0]!.id).first<{ count: number }>();
+    expect(linked?.count).toBe(5);
+  });
+
+  it("fails closed without logging sign-in links when production email is unavailable", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const email = `missing-email-${crypto.randomUUID()}@example.test`;
+    try {
+      const response = await worker.fetch(new Request("https://reefwire.ai/v1/auth/start", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }),
+      }), { ...env, DEV_MODE: "0", EMAIL: undefined } as unknown as Env);
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toEqual({ error: "email_unavailable" });
+      expect(log).not.toHaveBeenCalled();
+      const account = await env.DB.prepare("SELECT id FROM accounts WHERE email = ?").bind(email).first();
+      expect(account).toBeNull();
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("runs signup, code pairing, WS/poll delivery, ack, receipt passthrough, and deletion", async () => {
     const alice = await createUser("alice", "open");
     const bob = await createUser("bob", "code-only");

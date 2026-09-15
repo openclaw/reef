@@ -49,4 +49,6 @@ This starts `wrangler dev` with `DEV_MODE=1`. Magic links are printed to the Wra
 
 Production uses the `EMAIL` send binding in `wrangler.jsonc` and sends from `hello@reefwire.ai`. A self-hosted relay must onboard its own sender domain with Cloudflare Email Sending and update the sender address and canonical magic-link URL before production use.
 
+Without the `EMAIL` binding, production sign-in returns HTTP 503 with `email_unavailable` before creating an account or token. Only explicit `DEV_MODE=1` permits logging and returning magic links. Concurrent sign-in requests for the same email share one account and each receive their own single-use link, within the existing rate limits.
+
 The static marketing site is served by the same Worker for non-`/v1/` paths. Relay API behavior remains under `/v1/`.

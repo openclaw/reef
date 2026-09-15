@@ -13,23 +13,22 @@ export async function authStart(value: unknown, request: Request, env: Env): Pro
   const body = exactObject(value, ["email"]);
   const email = stringField(body, "email").trim().toLowerCase();
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, "invalid_request");
+  if (env.DEV_MODE !== "1" && !env.EMAIL) throw new HttpError(503, "email_unavailable");
   const now = nowSeconds();
   const emailHash = await sha256Hex(email);
   const clientIp = request.headers.get("CF-Connecting-IP") ?? "unknown";
   await consumeRate(env.DB, `auth-email:${emailHash}`, 3600, LIMITS.authStartsPerEmailHour);
   await consumeRate(env.DB, `auth-ip:${clientIp}`, 3600, LIMITS.authStartsPerIpHour);
   await env.DB.prepare("DELETE FROM auth_tokens WHERE expires < ? OR used = 1").bind(now).run();
-  let account = await env.DB.prepare("SELECT id FROM accounts WHERE email = ? COLLATE NOCASE").bind(email).first<{ id: string }>();
-  if (!account) {
-    account = { id: crypto.randomUUID() };
-    await env.DB.prepare("INSERT INTO accounts(id, email, email_hash, created) VALUES (?, ?, ?, ?)")
-      .bind(account.id, email, emailHash, now).run();
-  }
+  const account = await env.DB.prepare(`INSERT INTO accounts(id, email, email_hash, created) VALUES (?, ?, ?, ?)
+    ON CONFLICT(email) DO UPDATE SET email = excluded.email RETURNING id`)
+    .bind(crypto.randomUUID(), email, emailHash, now).first<{ id: string }>();
+  if (!account) throw new Error("account creation failed");
   const token = randomToken();
   await env.DB.prepare("INSERT INTO auth_tokens(token_hash, account_id, expires) VALUES (?, ?, ?)")
     .bind(await sha256Hex(token), account.id, now + LIMITS.magicTokenTtlSeconds).run();
   const link = `${MAGIC_LINK_ORIGIN}/welcome#token=${encodeURIComponent(token)}`;
-  if (env.DEV_MODE === "1" || !env.EMAIL) {
+  if (env.DEV_MODE === "1") {
     console.log(JSON.stringify({ event: "magic_link", email, link }));
   } else {
     await env.EMAIL.send({
