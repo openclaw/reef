@@ -2,7 +2,7 @@ import { appendFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { appendAudit, verifyChain } from "./audit.js";
+import { appendAudit, createAuditEntry, verifyChain } from "./audit.js";
 import { generateIdentity } from "./identity.js";
 import { JsonlAuditStore, FileReplayStore } from "./node.js";
 import { signReceipt } from "./receipts.js";
@@ -24,6 +24,27 @@ async function temporaryDirectory(prefix: string): Promise<string> {
 }
 
 describe("Node stores", () => {
+  it("reopens and extends an audit log larger than the function argument limit", async () => {
+    const directory = await temporaryDirectory("reef-audit-large-");
+    const path = join(directory, "audit.jsonl");
+    const count = 150_000;
+    const lines: string[] = [];
+    let head = { hash: "", seq: 0 };
+    for (let index = 0; index < count; index++) {
+      const entry = createAuditEntry("synthetic", { id: index }, 10, auditKey, head);
+      lines.push(JSON.stringify(entry));
+      head = { hash: entry.entryHash, seq: entry.event.seq };
+    }
+    await writeFile(path, `${lines.join("\n")}\n`);
+    const reopened = new JsonlAuditStore(path, auditKey);
+    const appended = await reopened.appendEvent("after-reopen", { id: count }, 11);
+    expect(appended.event.seq).toBe(count + 1);
+    expect(appended.prevHash).toBe(head.hash);
+    const entries = await reopened.entries();
+    expect(entries).toHaveLength(count + 1);
+    expect(verifyChain(entries)).toBe(true);
+  }, 30_000);
+
   it("persists serialized audit JSONL", async () => {
     const directory = await temporaryDirectory("reef-audit-");
     const path = join(directory, "audit.jsonl");

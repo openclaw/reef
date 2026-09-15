@@ -47,7 +47,7 @@ export class JsonlAuditStore implements AuditStore {
     if (this.#loaded) return;
     const entries = await readJsonl<AuditEntry>(this.path);
     if (!verifyChain(entries)) throw new Error("invalid audit chain");
-    this.#entries.push(...entries);
+    for (const entry of entries) this.#entries.push(entry);
     const last = entries.at(-1);
     this.#head = { hash: last?.entryHash ?? "", seq: last?.event.seq ?? 0 };
     this.#loaded = true;
