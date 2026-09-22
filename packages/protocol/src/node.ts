@@ -218,13 +218,6 @@ async function readJsonl<T>(path: string): Promise<T[]> {
   try {
     const contents = await readFile(path, "utf8");
     const lines = contents.split("\n");
-    let finalNonempty = -1;
-    for (let index = lines.length - 1; index >= 0; index--) {
-      if (lines[index]!.length > 0) {
-        finalNonempty = index;
-        break;
-      }
-    }
     const records: T[] = [];
     let characterOffset = 0;
     for (let index = 0; index < lines.length; index++) {
@@ -235,7 +228,8 @@ async function readJsonl<T>(path: string): Promise<T[]> {
       try {
         records.push(JSON.parse(line) as T);
       } catch (error) {
-        if (index !== finalNonempty) throw error;
+        // Only an unterminated tail can be a torn write; never erase a corrupt record.
+        if (index !== lines.length - 1) throw error;
         await truncateDurably(path, new TextEncoder().encode(contents.slice(0, lineStart)).length);
         return records;
       }

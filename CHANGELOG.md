@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Preserve and reject newline-terminated corrupt audit and replay records instead of silently truncating history or reopening replay claims; recover only unterminated torn writes.
 - Reopen large audit logs without overflowing the JavaScript function argument limit, preserving all history and subsequent appends.
 - Make concurrent sign-in starts share one account and reject missing production email configuration without logging sign-in tokens.
 - Snapshot protocol messages across asynchronous checks so caller mutations cannot replace guarded plaintext, verified ciphertext, recipients, or replay identifiers.
