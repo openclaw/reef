@@ -2,11 +2,15 @@
 
 ## Unreleased
 
-- Preserve and reject newline-terminated corrupt audit and replay records instead of silently truncating history or reopening replay claims; recover only unterminated torn writes.
-- Reopen large audit logs without overflowing the JavaScript function argument limit, preserving all history and subsequent appends.
-- Make concurrent sign-in starts share one account and reject missing production email configuration without logging sign-in tokens.
-- Snapshot protocol messages across asynchronous checks so caller mutations cannot replace guarded plaintext, verified ciphertext, recipients, or replay identifiers.
+## 0.2.0 - 2026-09-22
+
+**Highlights:** Receiver-owned friendship permissions control each message direction, while journal recovery and asynchronous protocol checks preserve delivery and audit integrity.
+
 - Add receiver-owned directional friendship permissions with signed updates, bidirectional migration defaults, and preserved queued delivery and receipts; thanks @jason-allen-oneal (#12).
+- Preserve and reject newline-terminated corrupt audit and replay records instead of silently truncating history or reopening replay claims; recover only unterminated torn writes.
+- Snapshot protocol messages across asynchronous checks so caller mutations cannot replace guarded plaintext, verified ciphertext, recipients, or replay identifiers.
+- Make concurrent sign-in starts share one account and reject missing production email configuration without logging sign-in tokens.
+- Reopen large audit logs without overflowing the JavaScript function argument limit, preserving all history and subsequent appends.
 
 ## 0.1.1 - 2026-09-13
 
