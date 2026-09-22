@@ -31,9 +31,11 @@ Delivery is at least once. The recipient keeps an encrypted completion record an
 Each endpoint records proposals, guard verdicts with model and policy version, exact envelopes, inbox reads, approvals, and signed receipts in a hash-chained local log. The relay does not hold this plaintext audit trail. Tampering with an earlier record breaks the chain.
 
 The Node audit and replay stores recover an interrupted final JSONL write by
-discarding an incomplete final record. A complete final record without its newline
+discarding an incomplete, unterminated final record. A complete final record without its newline
 is preserved and durably separated before further writes. Corrupt middle records
-remain errors.
+remain errors. Malformed records ending in a newline are also errors, even at the
+end of the file; recovery preserves those bytes instead of silently discarding
+audit history or reopening replay claims.
 
 Reopening an audit log verifies and retains its full chain, including histories larger than the JavaScript function argument limit; subsequent appends continue from the verified head.
 

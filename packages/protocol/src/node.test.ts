@@ -109,6 +109,42 @@ describe("Node stores", () => {
     await expect(new JsonlAuditStore(path, auditKey).entries()).rejects.toThrow();
   });
 
+  it.each(["\n", "\n\n"])("preserves and rejects a corrupt terminated audit record (%j)", async (ending) => {
+    const directory = await temporaryDirectory("reef-audit-corrupt-final-");
+    const path = join(directory, "audit.jsonl");
+    await new JsonlAuditStore(path, auditKey).appendEvent("one", { id: 1 }, 10);
+    await appendFile(path, `{"broken"${ending}`);
+    const contents = await readFile(path, "utf8");
+
+    await expect(new JsonlAuditStore(path, auditKey).entries()).rejects.toThrow();
+    expect(await readFile(path, "utf8")).toBe(contents);
+  });
+
+  it("does not reopen a replay claim by discarding a corrupt terminated consume record", async () => {
+    const directory = await temporaryDirectory("reef-replay-corrupt-final-");
+    const path = join(directory, "replay.jsonl");
+    await new FileReplayStore(path, replayBodyKey).claim("alice", receiptId, "c".repeat(64));
+    await appendFile(path, '{"op":"consume"\n');
+    const contents = await readFile(path, "utf8");
+
+    await expect(new FileReplayStore(path, replayBodyKey).claim("alice", receiptId, "c".repeat(64))).rejects.toThrow();
+    expect(await readFile(path, "utf8")).toBe(contents);
+  });
+
+  it("recovers a torn replay write without losing preceding consumed claims", async () => {
+    const directory = await temporaryDirectory("reef-replay-torn-");
+    const path = join(directory, "replay.jsonl");
+    const store = new FileReplayStore(path, replayBodyKey);
+    await store.claim("alice", receiptId, "c".repeat(64));
+    await store.consume("alice", receiptId);
+    await appendFile(path, '{"op":"claim"');
+
+    const reopened = new FileReplayStore(path, replayBodyKey);
+    expect(await reopened.claim("alice", receiptId, "c".repeat(64))).toBe("duplicate");
+    expect(await reopened.claim("bob", receiptId, "d".repeat(64))).toBe("new");
+    expect(await new FileReplayStore(path, replayBodyKey).claim("alice", receiptId, "c".repeat(64))).toBe("duplicate");
+  });
+
   it("persists replay bindings and completed receipts", async () => {
     const directory = await temporaryDirectory("reef-replay-");
     const path = join(directory, "replay.jsonl");
