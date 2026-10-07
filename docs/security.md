@@ -26,6 +26,8 @@ Recipients persist the first verified envelope hash for each message ID **per pe
 
 Delivery is at least once. The recipient keeps an encrypted completion record and returns the cached accepted or rejected receipt on redelivery. The channel plugin deduplicates ingress by envelope ID, so retries do not become duplicate messages.
 
+Each relay mailbox has separate limits of 200 messages and 200 delivery receipts. Polling does not consume receipts; they remain available until the 30-day retention expires. A full receipt queue preserves all existing receipts and makes a new acknowledgement return HTTP 429 `mailbox_full`. The relay caches that signed acknowledgement, so the recipient can retry forwarding it after retention frees capacity. Retained receipts do not consume the message quota.
+
 ## Local audit
 
 Each endpoint records proposals, guard verdicts with model and policy version, exact envelopes, inbox reads, approvals, and signed receipts in a hash-chained local log. The relay does not hold this plaintext audit trail. Tampering with an earlier record breaks the chain.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Give messages and delivery receipts independent mailbox quotas, preserving unread receipts at capacity and cached acknowledgement retries; thanks @SebTardif (#33).
+
 ## 0.2.0 - 2026-09-22
 
 **Highlights:** Receiver-owned friendship permissions control each message direction, while journal recovery and asynchronous protocol checks preserve delivery and audit integrity.

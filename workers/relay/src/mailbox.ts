@@ -59,7 +59,9 @@ export class Mailbox extends DurableObject<Env> {
       "SELECT seq FROM entries WHERE peer = ? AND id = ? AND kind = ?", peer, id, kind,
     ).toArray();
     if (existing.length > 0) return { result: "duplicate" };
-    const queued = this.ctx.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM entries").one().count;
+    const queued = this.ctx.storage.sql.exec<{ count: number }>(
+      "SELECT COUNT(*) AS count FROM entries WHERE kind = ?", kind,
+    ).one().count;
     if (queued >= LIMITS.mailboxEntriesPerHandle) return { result: "capacity" };
     const seq = this.ctx.storage.sql.exec<{ seq: number }>(
       "INSERT INTO entries(peer, id, kind, payload_json, ts) VALUES (?, ?, ?, ?, ?) RETURNING seq",
