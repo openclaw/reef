@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Refresh pnpm, Wrangler, Worker and Node types, and Markdown tooling; patch the test runtime’s Sharp/librsvg, Undici, and source-map-js vulnerabilities while retaining Vitest 4 compatibility.
 - Give messages and delivery receipts independent mailbox quotas, preserving unread receipts at capacity and cached acknowledgement retries; thanks @SebTardif (#33).
 
 ## 0.2.0 - 2026-09-22
