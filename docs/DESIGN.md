@@ -143,7 +143,7 @@ The guard is advisory-in-depth, not the boundary: signatures, pinning, determini
 ## Milestones
 
 1. **M1 — protocol package.** Envelope encode/verify/encrypt/decrypt, keypair + friend-code primitives, hash-chained audit log with signed checkpoints and redacted JSONL export, guard adapter interface + Anthropic/OpenAI adapters + deterministic checks, replay store. Vitest, no network in tests (guard adapters mocked; live smoke behind env flag).
-2. **M2 — relay worker.** Wrangler project: magic-link auth (dev-mode log delivery), handle/key registry, friendship tiers + codes + rate limits, mailbox DO with WS push + polling + receipts, retention. Miniflare/vitest-pool-workers integration tests.
+2. **M2 — relay worker.** Wrangler project: magic-link auth (dev-mode log delivery), handle/key registry, friendship tiers + codes + rate limits, mailbox DO with WS push + polling + receipts, retention. Miniflare/@cloudflare/vitest-plugin integration tests.
 3. **M3 — channel plugin.** Setup wizard, friend management, guard config, transport client, channel entry + outbound adapter, autonomy budgets on top of bot-loop protection.
 4. **M4 — end-to-end self-test.** Two local OpenClaw instances (two handles, self-friended) + `wrangler dev` relay: pair, exchange guarded messages both directions, verify receipts, audit chains, replay rejection, injection-corpus messages get flagged inbound.
 

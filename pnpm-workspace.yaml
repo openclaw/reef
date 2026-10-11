@@ -9,4 +9,4 @@ allowBuilds:
 overrides:
   sharp: 0.35.5
   tar: 7.5.22
-  undici@^7.0.0: 7.29.1
+  undici@^7.0.0: 7.30.0
