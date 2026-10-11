@@ -1,7 +1,7 @@
 {
  "name": "reef",
  "private": true,
- "packageManager": "pnpm@12.9.1",
+ "packageManager": "pnpm@12.11.2",
  "engines": {
   "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
  },
@@ -10,8 +10,8 @@
   "test": "pnpm -r test"
  },
  "devDependencies": {
-  "@types/node": "26.6.4",
+  "@types/node": "26.6.5",
   "typescript": "7.0.2",
-  "vitest": "4.1.11"
+  "vitest": "5.0.3"
  }
 }
