@@ -20,14 +20,14 @@ export async function deviceIdentity(request: Request, body: Uint8Array, env: En
   const message = canonicalBytes({ method: request.method.toUpperCase(), path: signedPath, ts, bodySha256: await sha256Hex(body) });
   if (!await verifyEd25519(row.ed25519_pub, signature, message)) throw new HttpError(401, "invalid_device_signature");
   const replayKey = `${handle}:${ts}:${signature.slice(0, 24)}`;
-  try {
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM request_replays WHERE expires < ?").bind(nowSeconds()),
-      env.DB.prepare("INSERT INTO request_replays(replay_key, expires) VALUES (?, ?)").bind(replayKey, nowSeconds() + LIMITS.replayTtlSeconds),
-    ]);
-  } catch {
-    throw new HttpError(409, "replayed_request");
-  }
+  // Only an existing replay key proves a replay. Storage failures must reach
+  // the request error boundary instead of accusing a valid request of replay.
+  const [, inserted] = await env.DB.batch([
+    env.DB.prepare("DELETE FROM request_replays WHERE expires < ?").bind(nowSeconds()),
+    env.DB.prepare("INSERT INTO request_replays(replay_key, expires) VALUES (?, ?) ON CONFLICT(replay_key) DO NOTHING")
+      .bind(replayKey, nowSeconds() + LIMITS.replayTtlSeconds),
+  ]);
+  if (inserted!.meta.changes === 0) throw new HttpError(409, "replayed_request");
   return { handle, row };
 }
 

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Report replay-store outages as server failures instead of falsely rejecting valid signed requests as replays; preserve duplicate-request rejection.
 - Migrate the deprecated Cloudflare test pool to its supported Vitest plugin and Vitest 5; refresh pnpm, Wrangler, Node and Worker types, and the compatible Undici 7 runtime.
 - Refresh pnpm, Wrangler, Worker and Node types, and Markdown tooling; patch the test runtime’s Sharp/librsvg, Undici, and source-map-js vulnerabilities while retaining Vitest 4 compatibility.
 - Give messages and delivery receipts independent mailbox quotas, preserving unread receipts at capacity and cached acknowledgement retries; thanks @SebTardif (#33).
