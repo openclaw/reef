@@ -2,11 +2,15 @@
 
 ## Unreleased
 
-- Update Vitest, the Cloudflare test plugin, Wrangler, Worker types, and Markdown rendering dependencies within the 24-hour release-age policy; disable the host filesystem module cache for Workerd tests.
-- Report replay-store outages as server failures instead of falsely rejecting valid signed requests as replays; preserve duplicate-request rejection.
-- Migrate the deprecated Cloudflare test pool to its supported Vitest plugin and Vitest 5; refresh pnpm, Wrangler, Node and Worker types, and the compatible Undici 7 runtime.
-- Refresh pnpm, Wrangler, Worker and Node types, and Markdown tooling; patch the test runtime’s Sharp/librsvg, Undici, and source-map-js vulnerabilities while retaining Vitest 4 compatibility.
+## 0.2.1 - 2026-10-16
+
+**Highlights:** Independent message and receipt quotas preserve unread receipts, replay-store outages return server errors, and dependency updates patch Sharp/librsvg, Undici, and source-map-js security vulnerabilities.
+
 - Give messages and delivery receipts independent mailbox quotas, preserving unread receipts at capacity and cached acknowledgement retries; thanks @SebTardif (#33).
+- Report replay-store outages as server failures instead of falsely rejecting valid signed requests as replays; preserve duplicate-request rejection.
+- Refresh pnpm, Wrangler, Worker and Node types, and Markdown tooling; patch the test runtime’s Sharp/librsvg, Undici, and source-map-js vulnerabilities while retaining Vitest 4 compatibility.
+- Migrate the deprecated Cloudflare test pool to its supported Vitest plugin and Vitest 5; refresh pnpm, Wrangler, Node and Worker types, and the compatible Undici 7 runtime.
+- Update Vitest, the Cloudflare test plugin, Wrangler, Worker types, and Markdown rendering dependencies within the 24-hour release-age policy; disable the host filesystem module cache for Workerd tests.
 
 ## 0.2.0 - 2026-09-22
 
