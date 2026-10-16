@@ -9,6 +9,8 @@ export default defineConfig({
     miniflare: { bindings: { DEV_MODE: "1", TEST_MIGRATIONS: migrations } },
   })],
   test: {
+    // Workerd cannot read Vitest's host-side transformed-module cache.
+    fsModuleCache: false,
     setupFiles: ["./test/setup.ts"],
     testTimeout: 10_000,
   },
