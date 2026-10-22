@@ -37,7 +37,7 @@ jobs:
       source-archives: true
       test-command: |
         node scripts/verify-release.mjs
-        npm install --global pnpm@12.11.2 --registry=https://registry.npmjs.org
+        npm install --global pnpm@12.15.0 --registry=https://registry.npmjs.org
         pnpm install --frozen-lockfile
         pnpm -r build
         pnpm -r test
