@@ -7,6 +7,7 @@ allowBuilds:
   workerd: true
 
 overrides:
+  workerd: 1.20261021.1
   sharp: 0.35.5
   tar: 7.5.22
   undici@^7.0.0: 7.30.0
