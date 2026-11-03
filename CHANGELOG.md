@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Batch main CodeQL analysis weekly while preserving PR and manual scans.
+
 ## 0.2.1 - 2026-10-16
 
 **Highlights:** Independent message and receipt quotas preserve unread receipts, replay-store outages return server errors, and dependency updates patch Sharp/librsvg, Undici, and source-map-js security vulnerabilities.
