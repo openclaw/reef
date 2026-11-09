@@ -1,7 +1,7 @@
 # Releasing Reef
 
 Reef ships source releases on GitHub through
-[`release-source.yml@v1`](https://github.com/openclaw/release-workflows/blob/v1/.github/workflows/release-source.yml).
+[a pinned `release-source.yml` workflow](https://github.com/openclaw/release-workflows/blob/a3c83188f344414c993f6a5e4b43f16317ffc6f0/.github/workflows/release-source.yml).
 Both workspace packages remain private. There is no npm publication, native
 binary, Homebrew formula, or Sparkle appcast. The workflow attaches frozen-commit
 source tar/zip archives, notes, an inventory, and checksums.

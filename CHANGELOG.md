@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Pin the shared source-release workflow to a reviewed commit, enabling exact-byte draft continuation and read-only verification of matching published releases.
+
 - Batch main CodeQL analysis weekly while preserving PR and manual scans.
 
 ## 0.2.1 - 2026-10-16
